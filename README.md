@@ -2,21 +2,35 @@
 
 <img width="128" src="https://github.com/ZekerTop/ai-cli-complete-notify/blob/main/desktop/assets/tray.png?raw=true">
 
-# AI CLI Complete Notify (v2.14.0)
+# AI CLI Complete Notify (v2.18.0)
 
-![Version](https://img.shields.io/badge/version-2.14.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.18.0-blue.svg)
 ![License](https://img.shields.io/badge/license-ISC-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20WSL-lightgrey.svg)
 [![Download macOS DMG](https://img.shields.io/github/v/release/ZekerTop/ai-cli-complete-notify?label=macOS%20DMG&logo=apple)](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest)
 
 English | [简体中文](README_zh.md) | [繁體中文](README_zh-TW.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
 
-![UI Preview](docs/images/通道.png)
+![UI Preview](docs/images/home-v2.17.0.png)
 </div>
+
+## Sponsors
+
+> [👉 Want to sponsor this project?](mailto:top.zeker@gmail.com)
+
+<table>
+  <tr>
+    <td align="center" width="180">
+      <a href="https://gptplus.uno"><img src="https://www.gptplus.uno/image/logo.png" alt="gptplus.uno" width="100" /></a><br />
+      <a href="https://gptplus.uno"><strong>gptplus.uno</strong></a>
+    </td>
+    <td><a href="https://gptplus.uno"><strong>gptplus.uno</strong></a> offers ChatGPT Plus / Pro purchase and upgrade guides, plan-selection advice, FAQs and self-service troubleshooting, with WeChat Pay and Alipay payment options. Thank you for supporting this open-source project.</td>
+  </tr>
+</table>
 
 ### 📖 Introduction
 
-An intelligent task completion notification tool for Claude Code / Codex / OpenCode / Gemini, supporting multiple notification channels and flexible configuration options. Get notified automatically through various methods when AI assistants complete long-running tasks, so you don't have to wait in front of your computer.
+An intelligent task completion notification tool for Claude Code / Codex / OpenCode / Gemini / ZCode, supporting multiple notification channels and flexible configuration options. Get notified automatically through various methods when AI assistants complete long-running tasks, so you don't have to wait in front of your computer.
 
 **Supported Notification Methods:**
 
@@ -28,17 +42,17 @@ An intelligent task completion notification tool for Claude Code / Codex / OpenC
 ## ✨ Key Features(For more detailed update logs, please refer to the end of the article)
 
 - 🎯 **Smart Debouncing**: Automatically adjusts notification timing based on task type - 60s for tool calls, only 15s without tool calls
-- 🔀 **Source Control**: Independent enable/disable and threshold settings for Claude / Codex / OpenCode / Gemini
+- 🔀 **Source Control**: Independent enable/disable and threshold settings for Claude / Codex / OpenCode / Gemini / ZCode
 - 📡 **Multi-Channel Push**: Support multiple notification methods simultaneously to ensure message delivery
 - ⏱️ **Duration Threshold**: Only notify when tasks exceed the set duration to avoid frequent interruptions
-- 🪝 **Hooks + Watch Integration**: Claude Code / Gemini CLI can use native hooks, OpenCode can use a global plugin, while Codex continues through log watching
+- 🪝 **Hooks + Watch Integration**: Claude Code / Codex / Gemini CLI / ZCode can use native hooks, OpenCode can use a global plugin, and Watch remains available as a fallback
 - 🧠 **AI Summary (Optional)**: Generate a short summary quickly; fallback to the original task if it times out
 - 🖥️ **Desktop Application**: GUI configuration with language switching, tray hiding, and auto-start
 - 🔐 **Configuration Separation**: Runtime configuration separated from sensitive information for security
 
 ## 💡 Recommended Configuration
 
-**Important**: For the best experience, it's recommended to grant AI assistants **full file read/write permissions** when using Claude Code / Codex / OpenCode / Gemini.
+**Important**: For the best experience, it's recommended to grant AI assistants **full file read/write permissions** when using Claude Code / Codex / OpenCode / Gemini. ZCode is not affected: it completes through its native `Stop` hook and has no Watch path, so it does not need these permissions.
 
 Benefits:
 - ✅ Ensures task logs are correctly recorded to local files
@@ -50,15 +64,15 @@ Benefits:
 
 - Claude Code often splits a request into sub-tasks. To avoid spam, this tool only notifies after the whole turn completes.
 - Log monitoring relies on a quiet period to confirm completion, so notifications are not instant (default 60s with tool calls, 15s without).
-- For the fastest and cleanest alerts, prefer Hooks for Claude Code / Gemini CLI and the global plugin for OpenCode; keep Watch for Codex or as a general fallback mode.
-- Watch and Hooks **can run together in hybrid mode**. Recommended hybrid setup: Codex uses Watch; Claude Code / Gemini / OpenCode use Hooks or plugins. If both paths fire for the same source, content-based dedupe keeps only one alert. **Watch-only** mode suppresses Claude/Gemini installed hooks so the two options stay distinct.
+- For faster completion alerts, prefer Hooks for Claude Code / Codex / Gemini CLI / ZCode and the global plugin for OpenCode. Codex requires a client version with native hook support and explicit hook trust; use Watch for clients without native hook support or with hooks disabled; hybrid mode keeps Watch as a fallback.
+- Watch and Hooks **can run together in hybrid mode**. Recommended hybrid setup: Claude Code / Codex / Gemini / OpenCode / ZCode use Hooks or plugins, with Watch running as a fallback where available. Codex Hook and Watch use the same session/turn key to deduplicate completion alerts; other sources keep their existing content-based deduplication. **Watch-only** mode suppresses installed Claude/Codex/Gemini hooks so the two options stay distinct; hook-only sources (OpenCode, Herdr, ZCode) are never silenced by it.
 
 ## Hooks vs Watch
 
-- **Hooks / plugin events** use explicit lifecycle events emitted by the AI CLI itself. For Claude Code, Gemini CLI, and OpenCode, that means reminders can fire closer to the real finish point instead of waiting for a quiet-period guess.
+- **Hooks / plugin events** use explicit lifecycle events emitted by the AI CLI itself. For Claude Code, supported Codex clients, Gemini CLI, OpenCode, and ZCode, that means reminders can fire closer to the real finish point instead of waiting for a quiet-period guess.
 - **Hooks** do not require a long-running background watcher for those tools, which reduces idle overhead and lowers the chance of log-parsing false positives.
-- **Watch** remains the universal fallback. It works well for Codex and for cases where hooks are not configured, but it depends on local logs and debounce time to infer that a turn has ended.
-- In practice, Hooks / plugin events were added because Claude Code's `Stop`, Gemini CLI's `AfterAgent`, and OpenCode's `session.status` idle / `session.idle` / `session.error` events provide more timely and accurate completion signals than watch-based log polling. In the current integration, Codex still uses Watch as the main completion path.
+- **Watch** remains the universal fallback. It supports Codex clients without native hook support or with hooks disabled or unconfigured, but it depends on local logs and debounce time to infer that a turn has ended.
+- In practice, Hooks / plugin events were added because Claude Code's `Stop`, Codex's `Stop`, ZCode's `Stop`, Gemini CLI's `AfterAgent`, and OpenCode's `session.status` idle / `session.idle` / `session.error` events provide more timely and accurate completion signals than watch-based log polling. Codex can use native hooks when the client supports them; Watch remains available as a fallback.
 
 ## 🚀 Quick Start
 
@@ -73,16 +87,18 @@ Benefits:
 
 #### macOS: Install the DMG (Recommended)
 
-1. On an Apple Silicon Mac, download the latest `ai-cli-complete-notify_<version>_aarch64.dmg` from [GitHub Releases](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest).
+1. Download the DMG matching your Mac from [GitHub Releases](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest):
+   - Apple Silicon (M-series): `ai-cli-complete-notify_<version>_aarch64.dmg`
+   - Intel: `ai-cli-complete-notify_<version>_x86_64.dmg`
 2. Open the DMG and drag `ai-cli-complete-notify.app` into `Applications`.
 3. On first launch, if macOS says the developer cannot be verified, right-click the app and choose **Open**.
 4. The packaged app reads notification settings from `~/.ai-cli-complete-notify/.env`. On first launch it creates `.env.example` there when configuration is missing.
 
-> The current Release DMG targets Apple Silicon (`arm64`). Intel Mac users can build from source using the steps below.
+> Requires macOS 13.5 or later (the bundled Node.js runtime's minimum). Check **About This Mac** to identify your chip or processor. These are separate architecture-specific packages, not Universal binaries. Both include Node.js; installing the DMG does not require Node.js/npm or Rust/Cargo.
 
 #### Run from Source (macOS / Linux)
 
-The following steps are only needed for Linux, Intel Mac, development, or users who prefer to build from source. Source/dev mode requires Node.js/npm and Rust/Cargo. Tauri calls `cargo` when running `npm run dev`; if `cargo --version` fails, install Rust from the [official Rust installation page](https://www.rust-lang.org/tools/install) first.
+The following steps are only needed for Linux, development, or users who prefer to build from source. Source/dev mode requires Node.js/npm and Rust/Cargo. Tauri calls `cargo` when running `npm run dev`; if `cargo --version` fails, install Rust from the [official Rust installation page](https://www.rust-lang.org/tools/install) first.
 
 ```bash
 # Clone repository
@@ -119,13 +135,13 @@ npm run dist:mac:dmg
 
 - **Top Bar**: Language switching, Watch monitoring toggle, window controls
 - **Channel Configuration**: Configure Webhook, Telegram, Email, and other notification channels
-- **Source Settings**: Set enable status and duration thresholds for Claude / Codex / OpenCode / Gemini separately
+- **Source Settings**: Set enable status and duration thresholds for Claude / Codex / OpenCode / Gemini / ZCode separately
 - **Monitoring Configuration**: Set polling interval and debounce time with smart adjustment support
 - **Confirm reminder (default: OFF)**: Effective only in Watch mode. When enabled, it triggers only when Codex shows an interactive choice prompt that requires your selection or submission (Plan mode); normal output text will not trigger it. Only one reminder is sent per turn: once a confirm reminder is triggered, that turn will not send a separate task-complete reminder.
 - **Watch logs**: Persisted locally with one-click open and retention days.
 - **Test Function**: Test whether each notification channel works properly
 - **AI Summary**: Configure API URL / Key / Model and timeout fallback
-- **Advanced Options**: Title prefix, close behavior, auto-start on boot, silent start (hide to tray on launch), click notification to return (best-effort; OS focus rules may block)
+- **Advanced Options**: Title prefix, close behavior, auto-start on boot, silent start (hide to tray on launch), hide the Dock icon (macOS only), click notification to return (best-effort; OS focus rules may block)
 
 ### Interface Preview
 
@@ -138,12 +154,14 @@ npm run dist:mac:dmg
 
 ### Tray Function
 
-After selecting "Hide to tray", the application minimizes to the system tray. The icon may be in the ^ collapsed area of the taskbar.
+After selecting "Hide to tray", the application hides its window and keeps running. On Windows, the icon may be in the taskbar's ^ collapsed area; on macOS, use the menu bar icon to reopen the window.
 With silent start enabled, the app launches hidden in the tray without a balloon.
+
+On macOS, enable **Advanced → Hide from Dock (show only in macOS menu bar)** to hide the Dock icon. This setting is off by default and is saved as `ui.hideDockIcon`; it is separate from silent start and close behavior. Click the menu bar icon, or choose **Show** from its menu, to reopen the window. If you use Ice or another menu bar manager and cannot find the icon, check its hidden sections and available menu bar space, then refresh the manager's layout.
 
 ## 💻 Command Line Usage
 
-> WSL note: CLI reminders work for webhook/Telegram/email, and sound can also work in WSL through Windows PowerShell. Desktop notifications and tray are Windows-only. Log monitoring works only when the AI CLI runs inside WSL (logs under `~/.claude`, `~/.codex`, `~/.gemini`). For WSL/CLI config, use `.env` for AI summary and Feishu card; `.env` overrides `settings.json`.
+> WSL note: CLI reminders work for webhook/Telegram/email. Desktop notifications and sound can use Windows PowerShell from WSL; tray remains a Windows-app feature. Log monitoring works only when the AI CLI runs inside WSL (logs under `~/.claude`, `~/.codex`, `~/.gemini`). For WSL/CLI config, use `.env` for AI summary and Feishu card; `.env` overrides `settings.json`.
 
 Note: For CLI usage from source (Node), run `npm install` first.
 
@@ -215,7 +233,7 @@ wslpath -w ~/.codex
 ```
 
 Notes:
-- In WSL, prefer webhook/Telegram/email channels; tray is a Windows GUI feature.
+- In WSL, desktop notifications and sound use Windows PowerShell; webhook/Telegram/email remain available, while tray is still a Windows-app feature.
 - For WSL CLI behavior, prefer `.env` for webhook and summary-related settings; global channel switches already saved in the desktop app still follow `settings.json`.
 
 ### Direct Notification
@@ -225,7 +243,7 @@ Notes:
 node ai-reminder.js notify --source claude --task "Task completed"
 ```
 
-### Native Hooks / Plugin Mode (Recommended for Claude Code / Gemini CLI / OpenCode)
+### Native Hooks / Plugin Mode (Recommended for Claude Code / Codex / Gemini CLI / OpenCode / ZCode)
 
 ```bash
 # Check current hook status
@@ -234,24 +252,57 @@ node ai-reminder.js hooks status
 # Install Claude Code hook
 node ai-reminder.js hooks install --target claude
 
+# Install Codex hooks (user-level; review / trust in Codex /hooks afterwards)
+node ai-reminder.js hooks install --target codex
+
+# Check, preview or uninstall Codex hooks
+node ai-reminder.js hooks status --target codex
+node ai-reminder.js hooks preview --target codex
+node ai-reminder.js hooks uninstall --target codex
+
 # Install Gemini CLI hook
 node ai-reminder.js hooks install --target gemini
 
 # Install OpenCode global plugin
 node ai-reminder.js hooks install --target opencode
 
+# Install the Herdr plugin (herdr-ai-notify) and auto-configure it
+node ai-reminder.js hooks install --target herdr
+
+# Install the ZCode hook (user-level; enables ZCode's hooks runner automatically)
+node ai-reminder.js hooks install --target zcode
+
 # Preview the hook / plugin file that will be written
 node ai-reminder.js hooks preview --target opencode
 
-# Remove a hook
+# Remove a hook / plugin
 node ai-reminder.js hooks uninstall --target claude
+node ai-reminder.js hooks uninstall --target herdr
 ```
 
 Notes:
 - Claude Code currently uses the native `Stop` hook event.
 - Gemini CLI currently uses the native `AfterAgent` hook event.
 - OpenCode currently uses a global plugin and listens to `session.status` idle / `session.idle` / `session.error`.
-- In the current integration, Codex completion reminders are still handled mainly through Watch mode.
+- ZCode uses hooks only, has no Watch path, and is disabled by default (`sources.zcode.enabled`). Installation registers `UserPromptSubmit` and `Stop` process hooks in the user-level `~/.zcode/cli/config.json` and enables `hooks.enabled`. Existing settings and other hooks are preserved; uninstall removes only this tool’s handlers.
+- Enable the ZCode source, install its hook under **Hooks / Plugin Integration**, then start a new ZCode session. `UserPromptSubmit` starts the timer and `Stop` checks the duration threshold: `0` allows a notification on every completed turn; a positive value requires at least that many minutes. With a positive threshold, no notification is sent if the start time is missing. Reinstall the hook when upgrading from a Stop-only installation. ZCode channel preferences can be changed independently; delivery still requires the corresponding global channel to be enabled and configured.
+- After installing or updating the ZCode hooks, **fully quit ZCode, reopen it, and start a new session** instead of continuing a session created before installation. Existing sessions may retain the hook configuration loaded at startup. If Test Notification succeeds but real tasks stay silent, confirm that the ZCode source and target channel are enabled, temporarily set the threshold to `0`, and test in a new session after restarting. Test Notification sends directly and bypasses the duration threshold; it does not verify actual hook execution.
+- Herdr installs the [`herdr-ai-notify`](https://github.com/8liang/herdr-ai-notify) plugin through `herdr plugin install`, listens to `pane.agent_status_changed` (`done` / `blocked`), and writes `AI_REMINDER_PATH` into the plugin's `config.env` (auto-detected from the current executable path). Herdr notifications use their own `herdr` source, so titles are prefixed `[Herdr]` and its channels are configured separately (see `sources.herdr`). The community plugin forces delivery, so duration thresholds do not filter these events.
+- Codex installation registers `UserPromptSubmit` and `Stop` command hooks in `CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`), preserving existing settings and other hooks. `UserPromptSubmit` starts timing and `Stop` checks the configured duration threshold; `0` allows each completed turn to notify. Uninstall removes only this tool's handlers.
+- **Configured does not mean active:** after installing or updating, open `/hooks` in a Codex client with native hook support, review / trust the new definitions, and ensure hooks are enabled. This installer does not change Codex trust decisions or enable a disabled hooks runner. Not every Codex client supports native hooks; use Watch for clients without native hook support or with hooks disabled; hybrid mode keeps Watch as a fallback.
+
+### Optional third-party tools (Herdr)
+
+Open **Third-party tools → Herdr**. The page checks status automatically; use **① Check → ② Install and connect plugin…**, then enable notifications separately. Herdr is a standalone terminal tool for running and managing AI tools such as Codex in one window. Only tasks running inside Herdr send these notifications; Codex Desktop users do not need this integration. Requires Herdr ≥ 0.7.0, Bash and Python 3; the macOS app uses bundled Node. Ready/success is green; setup required is yellow. Turning Herdr off grays out and disables channel controls while preserving selections. Normal startup/watch does not probe Herdr, and opening this page does not install anything automatically. Custom plugin settings and existing AI integrations are preserved. Only selected, globally enabled channels are used. Using Herdr and a native integration for the same task may cause duplicate notifications. Click **?** to show or hide the Herdr explanation; **Plugin repository** opens [herdr-ai-notify](https://github.com/8liang/herdr-ai-notify), and the contributor link opens [8liang](https://github.com/8liang).
+
+```bash
+# Explicit plugin status (ordinary hooks status does not run Herdr)
+node ai-reminder.js hooks status --target herdr
+# Configuration does not enable this app's Herdr notifications
+node ai-reminder.js hooks install --target herdr
+# Enable only after reviewing duplicate-notification risks
+node ai-reminder.js config --set '{"sources":{"herdr":{"enabled":true}}}'
+```
 
 ### Log Monitoring Mode (Recommended)
 
@@ -289,7 +340,7 @@ node ai-reminder.js stop --source gemini --task "Build project"
 
 ### Common Parameters
 
-- `--source` / `--sources`: Specify AI source (claude / codex / opencode / gemini / all). `watch --sources all` currently covers Claude / Codex / Gemini; OpenCode uses the plugin path above.
+- `--source` / `--sources`: Specify AI source (claude / codex / opencode / gemini / zcode / all). `watch --sources all` currently covers Claude / Codex / Gemini; OpenCode and ZCode use the plugin / hook paths above.
 - `--task`: Task description
 - `--interval-ms`: Polling interval (milliseconds)
 - `--gemini-quiet-ms`: Gemini debounce time (milliseconds)
@@ -333,6 +384,7 @@ WEBHOOK_URLS=https://open.feishu.cn/open-apis/bot/v2/hook/XXXXX
 # CODEX_WEBHOOK_URLS=https://example.com/codex-hook
 # GEMINI_WEBHOOK_URLS=https://example.com/gemini-hook
 # OPENCODE_WEBHOOK_URLS=https://example.com/opencode-hook
+# ZCODE_WEBHOOK_URLS=https://example.com/zcode-hook
 # Feishu card format (true/false). .env overrides settings.json.
 # WEBHOOK_USE_FEISHU_CARD=false
 # Webhooks send summary-only when AI summary succeeds by default.
@@ -348,6 +400,8 @@ NOTIFICATION_ENABLED=true
 SOUND_ENABLED=true
 
 # Telegram Bot
+# Keep the token private. For Unauthorized, run telegram-check and check the credential source first.
+# Revoke it immediately if it appeared in a public screenshot, issue, or log.
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 
@@ -381,6 +435,50 @@ WSL/CLI quick toggles:
 SUMMARY_ENABLED=true
 WEBHOOK_USE_FEISHU_CARD=true
 ```
+
+<a id="telegram-get-your-token-and-chat-id"></a>
+
+<details>
+<summary><strong>📱 Telegram setup: Token, Chat ID and testing (click to expand)</strong></summary>
+
+1. Open the verified [@BotFather](https://t.me/BotFather) account. Send `/newbot`, choose a name and a username ending in `bot`, and copy the returned Token. For an existing bot, use `/mybots`, select the bot, then **API Token**. Copy only the Token, without a URL or `bot` prefix. Keep it private; revoke it if exposed. [Official instructions](https://core.telegram.org/bots/features#botfather)
+2. For personal notifications, open **your own bot's chat, not BotFather**, press **Start**, and send a fresh message such as `test123`. No reply is required. Open the following URL in your browser, replacing all of `<TOKEN>` and retaining the preceding `bot`:
+
+   ```text
+   https://api.telegram.org/bot<TOKEN>/getUpdates
+   ```
+
+3. Find the matching message's `message.chat.id`. In this example, the Chat ID is **`123456789`**, not `update_id` or the Token's numeric prefix:
+
+   ```json
+   {"ok":true,"result":[{"update_id":987654321,"message":{"chat":{"id":123456789,"type":"private"},"text":"test123"}}]}
+   ```
+
+   Do not share the credential-bearing URL; close it afterwards and remember it may remain in browser history. An empty `result: []` means there are no pending updates: send a new message to the correct bot and refresh. Another connected program may have read the updates. A webhook conflict means another service receives this bot's updates; obtain the ID there or use a separate notification bot to avoid disrupting it. For groups, add the bot and send `/start@your_bot_username`, then use `message.chat.id`, preserving any minus sign. For channels, grant the bot posting permission and use `channel_post.chat.id` from a new channel post. [API reference](https://core.telegram.org/bots/api#getupdates)
+
+4. Click **Open data directory** and edit `.env` with a plain-text editor. If absent, copy `.env.example` to `.env`, not `.env.txt`. Packaged macOS apps use `~/.ai-cli-complete-notify/.env`; press `Command + Shift + .` in Finder to show hidden files. See above for other platforms. Update existing entries rather than duplicating them:
+
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token
+   TELEGRAM_CHAT_ID=your_chat_id
+   ```
+
+   The Channels page contains switches, not Token / Chat ID input fields.
+
+5. If the browser connects but the app times out with `proxyEnabled: false`, set your proxy's **HTTP or Mixed port** in `.env`:
+
+   ```env
+   # Example only: replace 10818 with your actual HTTP / Mixed port
+   HTTP_PROXY=http://127.0.0.1:10818
+   HTTPS_PROXY=http://127.0.0.1:10818
+   ```
+
+   Do not add `export` or semicolons. Telegram supports HTTP(S) CONNECT proxies; a SOCKS5-only port will not work here. Keep the proxy running. Desktop-launched apps may not inherit terminal exports.
+
+6. Save and fully restart the app. Enable Telegram globally and for the intended source, then save. In **Test notification**, click **Check Telegram** (since 2.17.0), or run `node ai-reminder.js telegram-check` from the source checkout. `ok: true` at `stage: getChat` confirms authentication and chat access; check that `botUsername` matches. A 401 at `getMe` requires checking `tokenSource`; a timeout requires checking connectivity, not assuming the Token is invalid. A `getChat` failure requires checking the receiving ID and chat access.
+7. The check sends no messages. Select the intended source and send a test notification. Verify **both `OK telegram` in the app and an actual message in the target chat**. See [Telegram troubleshooting](docs/telegram-troubleshooting.md) for credential precedence details.
+
+</details>
 
 ### Runtime Configuration (settings.json)
 
@@ -439,6 +537,7 @@ Windows notes:
 
 macOS notes:
 
+- Build with Node.js and Rust targeting the same architecture. The sidecar builder rejects a mismatched Node.js runtime; `--arch x64` alone does not cross-compile an ARM runtime. Maintainers can run **Actions → Build Intel macOS app** for native Intel builds, architecture checks, and regression tests.
 - `npm run build:sidecar` generates the Tauri sidecar for the current Mac architecture, for example `src-tauri/binaries/ai-reminder-aarch64-apple-darwin` on Apple Silicon.
 - `npm run dist:mac:app` outputs a double-clickable `.app`.
 - `npm run dist:mac:dmg` outputs a `.dmg` for distribution.
@@ -455,7 +554,7 @@ macOS notes:
 - 🎯 **Smart debouncing** automatically adjusts wait time based on AI message type, improving notification accuracy
 - 💡 **Monitoring mode** is suitable for long-term operation, recommend setting auto-start or keeping it running in a background terminal
 - 💡 **EXE starts with Watch enabled by default**: toggle it in the top bar if you don?t need it.
-- 🪝 **Hooks / plugin mode** is the preferred choice for Claude Code / Gemini CLI / OpenCode because it uses explicit completion events. Hybrid mode is recommended: keep Watch on for Codex while Claude / Gemini / OpenCode use hooks or plugins.
+- 🪝 **Hooks / plugin mode** uses explicit completion events for Claude Code / supported Codex clients / Gemini CLI / OpenCode / ZCode. Hybrid mode is recommended: use hooks or plugins and keep Watch as a fallback; Codex hooks require review / trust in `/hooks` and an enabled hooks runner.
 - ✅ **Confirm prompt toggle guidance (default: OFF)**: turn it on if AI often asks “confirm/approve/continue”; keep it off if you only want final completion alerts without intermediate interruptions. Note: if you set `CODEX_COMPLETION_ONLY=1` in `.env`, Codex confirm alerts are disabled (set it to `0` or remove it).
 - 🧭 **Click to return** is more reliable but still best-effort due to OS focus rules; for VSCode extensions choose the VSCode target and ensure VSCode is not minimized
 
@@ -465,6 +564,48 @@ macOS notes:
 <summary>View version history</summary>
 
 > `v2.x` is the current Tauri-based desktop line. `v1.x` was the Electron-based line.
+
+
+### 2.18.0
+
+- Added Windows desktop notifications for WSL CLI and Hook runs by reusing the existing Windows PowerShell toast/balloon path. No external network, MCP, or background service is required; pure Linux remains unchanged.
+- Added native Codex hooks for [Issue #41](https://github.com/ZekerTop/ai-cli-complete-notify/issues/41), with a Codex card in **Hooks / Plugin Integration** and CLI install, uninstall, status and preview commands. Definitions are written to `CODEX_HOME/hooks.json` (default `~/.codex/hooks.json`) while preserving other hooks.
+- `UserPromptSubmit` records the start time and `Stop` checks the configured duration threshold. Timing is isolated by session and turn; `0` allows each completed turn to notify, while a positive threshold requires a recorded duration.
+- Codex Hook and Watch completion events share session/turn deduplication. Transcript metadata filters explicit subagent sessions and intermediate completions while a goal is `active` or `paused`.
+- Configured does not mean executing: after installing or updating, review / trust the definitions in Codex `/hooks` and ensure hooks are enabled. Hybrid mode keeps Watch as a fallback; clients without native hook support or with hooks disabled can continue using Watch. Watch-only mode also suppresses Codex hooks.
+- Concurrent Codex Hook/Watch candidates use an atomic claim for the same session/turn. If the first attempt fails on every channel, a later candidate can take over, so a failed attempt does not block Watch fallback.
+- When the transcript provides an explicit `task_complete` timestamp, asynchronous `Stop` handling uses that completion time for the duration threshold, rather than counting processing delay as task runtime.
+- Fixed macOS DMG packaging compatibility with `LC_ALL`, retaining the standard drag-to-Applications installation layout.
+
+### 2.17.0
+
+- Fixed stale inherited variables overriding an explicitly selected `.env`. Added **Check Telegram** in Test notification and `node ai-reminder.js telegram-check` to verify the token and chat without sending messages. See [Telegram troubleshooting](docs/telegram-troubleshooting.md) (Issue #37).
+- Updated the app and tray logo: the dot above “i” is now a tilted bell with ringing waves. Added the logo to the left of the app name and aligned the title, version badge, and subtitle.
+- Added background update checks at startup and every hour while the app is running, using the latest public stable GitHub release. A red dot on the version badge indicates an update; click the badge to open About Project for version details and download links. Manual rechecks remain available; updates are not downloaded or installed automatically.
+- Added a 10-second update-check timeout and prevented overlapping requests. Failed background checks preserve a previously detected update indicator.
+- Fixed scroll position carrying over between sections. Switching sections now returns the content to the top.
+- Added ZCode as a source disabled by default, installed with `node ai-reminder.js hooks install --target zcode`. `UserPromptSubmit` records each turn’s start and `Stop` checks its duration. Timers are isolated by project and session; repeated Stop events keep the first completion time and are deduplicated. Start a new ZCode session after upgrading the hook.
+- ZCode hooks no longer force delivery past the duration threshold; invalid or non-completion events do not send completion alerts. Supports source channels, `ZCODE_WEBHOOK_URLS`, and AI summaries. No Watch path is added, and Watch-only mode does not suppress ZCode hooks.
+- Added consistent source logos and desktop labels for Claude and Codex. Codex uses the blue logo with its whitespace compensated. About Project now uses wrapping source icons with names on hover, sharing the same source list as the settings page.
+- Added the ZCode logo to Feishu cards. ZCode channel preferences remain editable when a global channel is off; actual delivery still requires that global channel to be enabled. Other sources retain their existing behavior.
+
+### 2.16.0
+
+- Simplified the layout: displayed the version beside the app title as a larger, bold rounded badge with a tinted background and border, without adding a separate row and removed the decorative Desktop Console, Workspace Panel and Source Profile headings to free up vertical space.
+- Added global light, dark and system themes with sun, moon and monitor icon buttons below the language selector. The choice is remembered; system mode follows OS appearance changes.
+- Added an optional Herdr page with notifications off by default, independent channels and duplicate-notification confirmation; existing AI integrations remain unchanged.
+- Automatically check status when entering the page, with numbered check/install buttons, green success and yellow setup hints. Turning notifications off disables and grays out channel controls without clearing selections. Added a click-to-expand explanation, a community badge, and plugin/contributor GitHub links.
+- Fixed Herdr discovery in macOS GUI install paths, unnecessary downloads when reconnecting an installed plugin, redundant activation of an already-enabled plugin, and messages not switching language. Preserved custom configuration, quoted paths and bundled-runtime delivery.
+
+### 2.15.0
+
+- Added a separate Intel Mac DMG named `ai-cli-complete-notify_2.15.0_x86_64.dmg`; the existing Apple Silicon `_aarch64.dmg` is unchanged. Added a native Intel build workflow and a runtime-architecture guard to prevent mixed-architecture packages.
+- Fixed Codex Desktop forked chats replaying historical completion notifications. Fork-copied history stays muted until initialization finishes and the user sends a new message; only new branch turns can notify.
+- Fixed Codex Watch treating Guardian approval-review sessions as completed user tasks. Object-valued `source.subagent` metadata, including `other: "guardian"`, now uses the existing subagent filter; normal parent-session completion notifications remain enabled. Thanks to [Bbbbqsh](https://github.com/Bbbbqsh) for [PR #34](https://github.com/ZekerTop/ai-cli-complete-notify/pull/34).
+- Added the macOS **Hide from Dock** option, off by default, with the saved preference applied at startup. The menu bar icon remains the entry point when the Dock icon is hidden. Thanks to [8liang](https://github.com/8liang) for [PR #31](https://github.com/ZekerTop/ai-cli-complete-notify/pull/31).
+- Improved Telegram `401 / Unauthorized` diagnostics with guidance to regenerate invalid or revoked Bot Tokens through `@BotFather` and revoke exposed tokens. This improves error reporting; it does not repair invalid credentials automatically ([Issue #33](https://github.com/ZekerTop/ai-cli-complete-notify/issues/33)).
+- Added Vite client type declarations so TypeScript recognizes imported JPG assets without changing the interface.
+- Added regression coverage for rewritten fork timestamps, history appended after Watch attaches, inherited turn detection without an explicit boundary, attach/seed races, a different workspace `cwd`, Guardian filtering with normal parent completion, and Telegram authentication diagnostics.
 
 ### 2.14.0
 
@@ -650,9 +791,17 @@ Issues and Pull Requests are welcome!
 
 Thanks to everyone who has contributed to this project through code, documentation, feedback, and ideas.
 
-<a href="https://github.com/ZekerTop/ai-cli-complete-notify/graphs/contributors">
- <img alt="Contributors" src="https://contrib.rocks/image?repo=ZekerTop/ai-cli-complete-notify&max=100&columns=12&anon=0" />
-</a>
+<p>
+  <a href="https://github.com/ZekerTop"><img src="docs/images/contributors/ZekerTop.svg" width="64" height="64" alt="ZekerTop" title="ZekerTop" /></a>
+  <a href="https://github.com/claude-notes"><img src="docs/images/contributors/claude-notes.svg" width="64" height="64" alt="claude-notes" title="claude-notes" /></a>
+  <a href="https://github.com/8liang"><img src="docs/images/contributors/8liang.svg" width="64" height="64" alt="8liang" title="8liang" /></a>
+  <a href="https://github.com/Atoony"><img src="docs/images/contributors/Atoony.svg" width="64" height="64" alt="Atoony" title="Atoony" /></a>
+  <a href="https://github.com/Windyskr"><img src="docs/images/contributors/Windyskr.svg" width="64" height="64" alt="Windyskr" title="Windyskr" /></a>
+  <a href="https://github.com/Bbbbqsh"><img src="docs/images/contributors/Bbbbqsh.svg" width="64" height="64" alt="Bbbbqsh" title="Bbbbqsh" /></a>
+  <a href="https://github.com/WALKERKILLER"><img src="docs/images/contributors/WALKERKILLER.svg" width="64" height="64" alt="WALKERKILLER" title="WALKERKILLER" /></a>
+  <a href="https://github.com/quecai-niu"><img src="docs/images/contributors/quecai-niu.svg" width="64" height="64" alt="quecai-niu" title="quecai-niu" /></a>
+  <a href="https://github.com/lishangwl"><img src="docs/images/contributors/lishangwl.svg" width="64" height="64" alt="lishangwl" title="lishangwl" /></a>
+</p>
 
 ## 🔗 Links
 

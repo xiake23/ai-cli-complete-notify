@@ -2,22 +2,36 @@
 
 <img width="128" src="https://github.com/ZekerTop/ai-cli-complete-notify/blob/main/desktop/assets/tray.png?raw=true">
 
-# AI CLI Complete Notify (v2.14.0)
+# AI CLI Complete Notify (v2.18.0)
 
-![Version](https://img.shields.io/badge/version-2.14.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.18.0-blue.svg)
 ![License](https://img.shields.io/badge/license-ISC-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20WSL-lightgrey.svg)
 [![下载 macOS DMG](https://img.shields.io/github/v/release/ZekerTop/ai-cli-complete-notify?label=macOS%20DMG&logo=apple)](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest)
 
 [English](README.md) | 简体中文 | [繁體中文](README_zh-TW.md) | [한국어](README_ko.md) | [日本語](README_ja.md)
 
-![界面预览](docs/images/通道.png)
+![界面预览](docs/images/home-v2.17.0.png)
 
 </div>
 
+## Sponsors
+
+> [👉 想赞助本项目？](mailto:top.zeker@gmail.com)
+
+<table>
+  <tr>
+    <td align="center" width="180">
+      <a href="https://gptplus.uno"><img src="https://www.gptplus.uno/image/logo.png" alt="gptplus.uno" width="100" /></a><br />
+      <a href="https://gptplus.uno"><strong>gptplus.uno</strong></a>
+    </td>
+    <td><a href="https://gptplus.uno"><strong>gptplus.uno</strong></a> 提供 ChatGPT Plus / Pro 购买与升级指南、套餐选择建议、常见问题解答及自助排查说明，支持微信支付和支付宝。感谢其对本开源项目的支持。</td>
+  </tr>
+</table>
+
 ### 📖 简介
 
-面向 Claude Code / Codex / OpenCode / Gemini 的智能任务完成提醒工具，支持多种通知渠道和灵活的配置选项。当 AI 助手完成长时间任务时，自动通过多种方式通知您，让您无需守在电脑前等待。
+面向 Claude Code / Codex / OpenCode / Gemini / ZCode 的智能任务完成提醒工具，支持多种通知渠道和灵活的配置选项。当 AI 助手完成长时间任务时，自动通过多种方式通知您，让您无需守在电脑前等待。
 
 **支持的通知方式：**
 
@@ -29,17 +43,17 @@
 ## ✨ 核心特性（更多详细更新日志见文末）
 
 - 🎯 **智能去抖**：根据任务类型自动调整提醒时机，有工具调用时等待 60 秒，无工具调用时仅需 15 秒
-- 🔀 **分源控制**：Claude / Codex / OpenCode / Gemini 独立启用与阈值设置
+- 🔀 **分源控制**：Claude / Codex / OpenCode / Gemini / ZCode 独立启用与阈值设置
 - 📡 **多通道推送**：同时支持多种通知方式，确保消息送达
 - ⏱️ **耗时阈值**：只在任务超过设定时长时提醒，避免频繁打扰
-- 🪝 **Hooks + Watch 混合集成**：Claude Code / Gemini CLI 可走原生 Hook，OpenCode 可走全局插件事件，Codex 继续通过日志监听完成提醒
+- 🪝 **Hooks + Watch 混合集成**：Claude Code / Codex / Gemini CLI / ZCode 可走原生 Hook，OpenCode 可走全局插件事件，Watch 保留兜底
 - 🧠 **AI 摘要（可选）**：任务完成后快速生成简短摘要，超时自动回退
 - 🖥️ **桌面应用**：图形界面配置，支持中英文切换、托盘隐藏、开机自启
 - 🔐 **配置分离**：运行配置与敏感信息分离，安全可靠
 
 ## 💡 推荐配置
 
-**重要提示**：为了获得最佳使用体验，建议在使用 Claude Code / Codex / OpenCode / Gemini 时授予 AI 助手**完整的文件读写权限**。
+**重要提示**：为了获得最佳使用体验，建议在使用 Claude Code / Codex / OpenCode / Gemini 时授予 AI 助手**完整的文件读写权限**。ZCode 不受影响：它通过原生 `Stop` Hook 完成提醒、没有 Watch 路径，无需这些权限。
 
 这样做的好处：
 - ✅ 确保任务日志被正确记录到本地文件
@@ -51,15 +65,15 @@
 
 - Claude Code 往往会拆分为多个子任务，为避免每个子任务都提醒，本项目只在“整轮完成”后再通知。
 - 监听模式依赖日志变化，需要一个去抖静默时间确认结束，因此提醒不是即时触发（默认有工具调用时 60 秒、无工具调用时 15 秒）。
-- 如果想要更快、更干净的提醒：Claude Code / Gemini CLI 优先使用 Hook，OpenCode 优先使用全局插件；Codex 或其他兜底场景继续使用 Watch。
-- Watch 与 Hooks **在混合模式下可以同时开启**。推荐混合：Codex 用 Watch，Claude Code / Gemini / OpenCode 用 Hooks 或插件；同一来源若两条路径都触发，会按内容去重，只提醒一次。**仅 Watch** 模式会屏蔽 Claude/Gemini 已安装的 hooks，使两种模式语义保持区分。
+- 如果想要更快、更干净的提醒：Claude Code / Codex / Gemini CLI / ZCode 优先使用 Hook，OpenCode 优先使用全局插件。Codex 需要客户端版本支持原生 hooks 并完成信任；未支持或未启用原生 hooks 的客户端继续使用 Watch；混合模式保留 Watch 兜底。
+- Watch 与 Hooks **在混合模式下可以同时开启**。推荐混合：Claude Code / Codex / Gemini / OpenCode / ZCode 用 Hooks 或插件，同时保留可用的 Watch 兜底；Codex Hook 与 Watch 按同一 session / turn 去重，其他来源沿用既有的内容去重。**仅 Watch** 模式会屏蔽 Claude/Codex/Gemini 已安装的 hooks，使两种模式语义保持区分；仅走 Hook 的来源（OpenCode、Herdr、ZCode）不会被该模式屏蔽。
 
 ## Hooks 与 Watch 的区别
 
-- **Hook / 插件事件** 直接利用 AI CLI 自己发出的显式生命周期事件。对 Claude Code、Gemini CLI 和 OpenCode 来说，这意味着提醒可以更接近真实完成时刻，而不是依赖静默时间去猜测。
+- **Hook / 插件事件** 直接利用 AI CLI 自己发出的显式生命周期事件。对 Claude Code、支持原生 hooks 的 Codex 客户端、Gemini CLI、OpenCode 和 ZCode 来说，这意味着提醒可以更接近真实完成时刻，而不是依赖静默时间去猜测。
 - **Hook** 不需要为这些工具长期常驻一个后台监听器，空闲期开销更小，也更不容易因为日志解析产生误判。
-- **Watch** 仍然是通用兜底方案。它很适合 Codex，也适合没有配置 Hook 的场景，但它必须依赖本地日志和去抖静默时间来推断一轮是否真正结束。
-- 实际上，之所以增加 Hook / 插件事件选项，主要是因为 Claude Code 的 `Stop`、Gemini CLI 的 `AfterAgent`，以及 OpenCode 的 `session.status` idle / `session.idle` / `session.error`，相比日志轮询能提供更及时、更准确的完成信号；而在当前集成里，Codex 仍以 Watch 作为主要完成提醒路径。
+- **Watch** 仍然是通用兜底方案。它适用于未支持或未启用原生 hooks 的 Codex 客户端，也适合没有配置 Hook 的场景，但它必须依赖本地日志和去抖静默时间来推断一轮是否真正结束。
+- 实际上，之所以增加 Hook / 插件事件选项，主要是因为 Claude Code 的 `Stop`、Codex 的 `Stop`、ZCode 的 `Stop`、Gemini CLI 的 `AfterAgent`，以及 OpenCode 的 `session.status` idle / `session.idle` / `session.error`，相比日志轮询能提供更及时、更准确的完成信号；支持原生 hooks 的 Codex 客户端也可通过 Hook 提醒，同时保留 Watch 兜底。
 
 ## 🚀 快速开始
 
@@ -74,16 +88,18 @@
 
 #### macOS：直接安装 DMG（推荐）
 
-1. Apple Silicon Mac 用户从 [GitHub Releases](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest) 下载最新的 `ai-cli-complete-notify_<版本号>_aarch64.dmg`。
+1. 从 [GitHub Releases](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest) 下载与你的 Mac 芯片对应的安装包：
+   - Apple Silicon（M 系列）：`ai-cli-complete-notify_<版本号>_aarch64.dmg`
+   - Intel：`ai-cli-complete-notify_<版本号>_x86_64.dmg`
 2. 打开 DMG，将 `ai-cli-complete-notify.app` 拖入“应用程序（Applications）”。
 3. 首次启动时，如果 macOS 提示无法验证开发者，请右键应用并选择“打开”。
 4. 打包版从 `~/.ai-cli-complete-notify/.env` 读取通知配置；首次启动发现配置缺失时，会在该目录创建 `.env.example`。
 
-> 当前 Release DMG 适用于 Apple Silicon（`arm64`）。Intel Mac 用户可以按照下面的步骤从源码构建。
+> 需要 macOS 13.5 或更新版本（内置 Node.js 运行时的最低要求）。可在“关于本机”查看芯片或处理器。这是两个独立架构的安装包，不是 Universal 通用包。两者均内置 Node.js，安装 DMG 无需额外安装 Node.js/npm 或 Rust/Cargo。
 
 #### 从源码运行（macOS / Linux）
 
-以下步骤仅适用于 Linux、Intel Mac、开发调试或希望自行构建的用户。源码 / 开发模式需要 Node.js/npm 和 Rust/Cargo。Tauri 在执行 `npm run dev` 时会调用 `cargo`；如果 `cargo --version` 失败，请先从 [Rust 官方安装页面](https://www.rust-lang.org/tools/install) 安装 Rust。
+以下步骤仅适用于 Linux、开发调试或希望自行构建的用户。源码 / 开发模式需要 Node.js/npm 和 Rust/Cargo。Tauri 在执行 `npm run dev` 时会调用 `cargo`；如果 `cargo --version` 失败，请先从 [Rust 官方安装页面](https://www.rust-lang.org/tools/install) 安装 Rust。
 
 ```bash
 # 克隆仓库
@@ -120,13 +136,13 @@ npm run dist:mac:dmg
 
 - **顶部栏**：语言切换、Watch 监听开关、窗口控制
 - **通道配置**：配置 Webhook、Telegram、邮件等通知渠道
-- **来源设置**：为 Claude / Codex / OpenCode / Gemini 分别设置启用状态和耗时阈值
+- **来源设置**：为 Claude / Codex / OpenCode / Gemini / ZCode 分别设置启用状态和耗时阈值
 - **监听配置**：设置轮询间隔和去抖时间，支持智能调整
 - **确认提醒（默认关闭）**：仅在 Watch 监听生效。开启后，仅当 Codex 出现交互式选项框（需要你选择/提交，Plan 模式）时提醒；不会因普通输出文本触发。同一轮只提醒一次：触发“确认提醒”后本轮不再发送“任务完成提醒”。
 - **监听日志**：本地持久化，可一键打开，并支持保留天数设置。
 - **测试功能**：测试各通知渠道是否正常工作
 - **AI 摘要**：配置 API URL / Key / 模型 与超时回退
-- **高级选项**：标题前缀、关闭行为、开机自启动、无感启动、点击通知切回编辑器/终端（受系统焦点限制）
+- **高级选项**：标题前缀、关闭行为、开机自启动、无感启动、在程序坞中隐藏图标（仅 macOS）、点击通知切回编辑器/终端（受系统焦点限制）
 
 ### 界面预览
 
@@ -139,12 +155,14 @@ npm run dist:mac:dmg
 
 ### 托盘功能
 
-选择"隐藏到托盘"后，应用会最小化到系统托盘。图标可能在任务栏的 ^ 折叠区域中。
+选择“隐藏到托盘”后，应用会隐藏窗口并继续运行。Windows 图标可能在任务栏的 ^ 折叠区域中；macOS 可通过菜单栏图标重新打开窗口。
 开启“无感启动”后，启动即隐藏到托盘且不弹出提示。
+
+macOS 可在 **高级 → 在程序坞中隐藏（仅在 macOS 菜单栏显示图标）** 开启 Dock 图标隐藏。此选项默认关闭，保存为 `ui.hideDockIcon`，与“无感启动”和“关闭行为”独立。隐藏后，点击菜单栏图标或在其菜单中选择 **Show** 即可重新打开窗口。如果使用 Ice 等菜单栏管理工具却找不到图标，请检查隐藏分区及菜单栏可用空间，并刷新管理工具的布局。
 
 ## 💻 命令行使用
 
-> WSL 说明：命令行提醒可用（Webhook/Telegram/邮件），声音提醒也可以通过 Windows PowerShell 在 WSL 下工作。桌面通知和托盘仅 Windows 支持。日志监听仅在 AI CLI 运行于 WSL（日志位于 `~/.claude`、`~/.codex`、`~/.gemini`）时生效。WSL/CLI 下，AI 摘要与飞书卡片都建议用 `.env` 控制，且 `.env` 优先于 `settings.json`（见下方示例）。
+> WSL 说明：命令行提醒可用（Webhook/Telegram/邮件），桌面通知和声音均可通过 Windows PowerShell 在 WSL 下工作；托盘仍属于 Windows 桌面应用。日志监听仅在 AI CLI 运行于 WSL（日志位于 `~/.claude`、`~/.codex`、`~/.gemini`）时生效。WSL/CLI 下，AI 摘要与飞书卡片都建议用 `.env` 控制，且 `.env` 优先于 `settings.json`（见下方示例）。
 
 命令行（源码方式）使用前请先执行 `npm install`。
 
@@ -216,7 +234,7 @@ wslpath -w ~/.codex
 ```
 
 提示：
-- WSL 场景建议优先使用 Webhook / Telegram / 邮件；托盘属于 Windows GUI 功能。
+- WSL 可通过 Windows PowerShell 使用桌面通知和声音，也可继续使用 Webhook / Telegram / 邮件；托盘仍属于 Windows 桌面应用。
 - 若你在 WSL 里跑 CLI，但想让 webhook、摘要等配置生效，优先写 `.env`；桌面应用里已经保存过的全局通道开关仍以 `settings.json` 为准。
 
 ### 直接通知
@@ -226,7 +244,7 @@ wslpath -w ~/.codex
 node ai-reminder.js notify --source claude --task "任务完成"
 ```
 
-### 原生 Hook / 插件模式（推荐用于 Claude Code / Gemini CLI / OpenCode）
+### 原生 Hook / 插件模式（推荐用于 Claude Code / Codex / Gemini CLI / OpenCode / Herdr / ZCode）
 
 ```bash
 # 查看当前 Hook 状态
@@ -235,24 +253,57 @@ node ai-reminder.js hooks status
 # 安装 Claude Code Hook
 node ai-reminder.js hooks install --target claude
 
+# 安装 Codex Hook（用户级；安装后需在 Codex /hooks 中 review / trust）
+node ai-reminder.js hooks install --target codex
+
+# 查看、预览或卸载 Codex Hook
+node ai-reminder.js hooks status --target codex
+node ai-reminder.js hooks preview --target codex
+node ai-reminder.js hooks uninstall --target codex
+
 # 安装 Gemini CLI Hook
 node ai-reminder.js hooks install --target gemini
 
 # 安装 OpenCode 全局插件
 node ai-reminder.js hooks install --target opencode
 
+# 安装 Herdr 插件（herdr-ai-notify）并自动写入配置
+node ai-reminder.js hooks install --target herdr
+
+# 安装 ZCode Hook（用户级；自动启用 ZCode 的 hooks runner）
+node ai-reminder.js hooks install --target zcode
+
 # 预览将要写入的 Hook / 插件内容
 node ai-reminder.js hooks preview --target opencode
 
-# 卸载某个 Hook
+# 卸载某个 Hook / 插件
 node ai-reminder.js hooks uninstall --target claude
+node ai-reminder.js hooks uninstall --target herdr
 ```
 
 说明：
 - Claude Code 当前使用原生 `Stop` Hook 事件。
 - Gemini CLI 当前使用原生 `AfterAgent` Hook 事件。
 - OpenCode 当前使用全局插件，监听 `session.status` idle / `session.idle` / `session.error` 事件。
-- 当前集成下，Codex 的任务完成提醒仍主要通过 Watch 模式处理。
+- ZCode 仅使用 Hook，没有 Watch 路径，来源默认关闭（`sources.zcode.enabled`）。安装会在用户级 `~/.zcode/cli/config.json` 中注册 `UserPromptSubmit` 和 `Stop` 两个 process Hook，并启用 `hooks.enabled`；保留其他 Hook 和已有设置，卸载仅移除本工具的处理器。
+- 启用 ZCode 来源后，在「Hooks / 插件集成」安装 ZCode Hook，再新建 ZCode 会话。`UserPromptSubmit` 开始计时，`Stop` 按「超过(分钟)才提醒」的阈值判断：设为 `0` 时每轮完成均可提醒，正数表示至少运行相应分钟数；没有开始时间记录时，正数阈值下不会发送提醒。旧版仅安装 `Stop` 的用户需重新安装 Hook。ZCode 的通道开关可独立调整，实际发送仍要求对应全局通道已启用并配置完成。
+- 安装或更新 ZCode Hook 后，请**完全退出 ZCode，再重新打开并新建会话**，不要继续安装前的旧会话。旧会话可能仍使用启动时加载的 Hook 配置。若「测试通知」成功但实际任务没有提醒，先确认 ZCode 来源与目标通道已启用，将阈值临时设为 `0`，再按上述步骤用新会话测试。「测试通知」会直接发送并跳过耗时阈值，不能验证真实 Hook 是否执行。
+- Herdr 通过 `herdr plugin install` 安装 [`herdr-ai-notify`](https://github.com/8liang/herdr-ai-notify) 插件，监听 `pane.agent_status_changed`（`done` / `blocked`），并自动把当前可执行文件路径写入插件配置目录下的 `config.env`（`AI_REMINDER_PATH`）。Herdr 通知使用独立的 `herdr` 源，标题前缀显示 `[Herdr]`，其通道可在 `sources.herdr` 中单独配置。社区插件强制发送事件，耗时阈值不会过滤这些提醒。
+- Codex 安装会在 `CODEX_HOME/hooks.json`（默认 `~/.codex/hooks.json`）注册 `UserPromptSubmit` 和 `Stop` command hooks，保留既有设置与其他 Hook。`UserPromptSubmit` 开始计时，`Stop` 按配置的耗时阈值判断；阈值为 `0` 时每轮完成均可提醒。卸载只移除本工具的处理器。
+- **已配置不代表已启用**：安装或更新后，需要进入支持原生 hooks 的 Codex，在 `/hooks` 中 review / trust 新定义，并确认 hooks 已开启。安装器不会修改 Codex 的信任决定，也不会开启已关闭的 hooks runner。并非所有 Codex 客户端都支持原生 hooks，未支持或未启用原生 hooks 的客户端继续使用 Watch；混合模式保留 Watch 兜底。
+
+### 可选第三方工具（Herdr）
+
+打开 **第三方工具 → Herdr** 时会自动检测状态，也可按 **① 检查 → ② 安装并连接插件…** 操作，随后单独开启通知。Herdr 是一个独立的终端工具，用来在同一个窗口里运行、管理 Codex 等 AI 工具。仅提醒在 Herdr 中运行的任务；使用 Codex 桌面端无需开启。需要 Herdr ≥ 0.7.0、Bash 和 Python 3，macOS 应用使用内置 Node。就绪或成功显示绿色，需要配置显示黄色。关闭 Herdr 后，渠道灰显并禁用，保留原有选择。正常启动和 watch 不探测 Herdr，进入页面不会自动安装。保留插件自定义设置，不改变现有 AI 集成；仅使用选中且全局已启用的渠道。同一任务同时接入 Herdr 与原生集成可能重复提醒。点击 **?** 可展开或收起说明；**插件项目仓库** 跳转到 [herdr-ai-notify](https://github.com/8liang/herdr-ai-notify)，贡献者链接跳转到 [8liang](https://github.com/8liang) 的 GitHub 主页。
+
+```bash
+# Explicit plugin status (ordinary hooks status does not run Herdr)
+node ai-reminder.js hooks status --target herdr
+# Configuration does not enable this app's Herdr notifications
+node ai-reminder.js hooks install --target herdr
+# Enable only after reviewing duplicate-notification risks
+node ai-reminder.js config --set '{"sources":{"herdr":{"enabled":true}}}'
+```
 
 ### 日志监听模式（推荐）
 
@@ -292,7 +343,7 @@ node ai-reminder.js stop --source gemini --task "构建项目"
 
 ### 常用参数
 
-- `--source` / `--sources`：指定 AI 来源（claude / codex / opencode / gemini / all）。其中 `watch --sources all` 当前覆盖 Claude / Codex / Gemini；OpenCode 走上面的插件方案。
+- `--source` / `--sources`：指定 AI 来源（claude / codex / opencode / gemini / zcode / all）。其中 `watch --sources all` 当前覆盖 Claude / Codex / Gemini；OpenCode、ZCode 走上面的插件 / Hook 方案。
 - `--task`：任务描述
 - `--interval-ms`：轮询间隔（毫秒）
 - `--gemini-quiet-ms`：Gemini 去抖时间（毫秒）
@@ -336,6 +387,7 @@ WEBHOOK_URLS=https://open.feishu.cn/open-apis/bot/v2/hook/XXXXX
 # CODEX_WEBHOOK_URLS=https://example.com/codex-hook
 # GEMINI_WEBHOOK_URLS=https://example.com/gemini-hook
 # OPENCODE_WEBHOOK_URLS=https://example.com/opencode-hook
+# ZCODE_WEBHOOK_URLS=https://example.com/zcode-hook
 # 飞书卡片格式（true/false），.env 优先于 settings.json
 # WEBHOOK_USE_FEISHU_CARD=false
 # Webhook 默认在 AI 摘要成功时只发送摘要；打开后同时附带原始输出
@@ -350,6 +402,8 @@ NOTIFICATION_ENABLED=true
 SOUND_ENABLED=true
 
 # Telegram Bot
+# Token 必须保密；若返回 Unauthorized，先运行 telegram-check 核对实际配置来源
+# 若 Token 曾出现在公开截图、Issue 或日志中，请立即撤销旧 Token
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
 
@@ -383,6 +437,96 @@ WSL/CLI 快速设置示例：
 SUMMARY_ENABLED=true
 WEBHOOK_USE_FEISHU_CARD=true
 ```
+
+<a id="telegram获取-tokenchat-id-并测试通知"></a>
+
+<details>
+<summary><strong>📱 Telegram 配置教程：Token、Chat ID 与测试（点击展开）</strong></summary>
+
+#### 1. 获取 Bot Token
+
+在 Telegram 打开官方认证的 [@BotFather](https://t.me/BotFather)：
+
+- **没有机器人**：发送 `/newbot`，按提示设置显示名称和以 `bot` 结尾的用户名，复制创建成功后返回的 Token。
+- **已有机器人**：发送 `/mybots`，选择自己的机器人，再点击 **API Token** 查看 Token。
+
+Token 是访问凭证，不是机器人用户名。只复制 Token 本身，不要加网址、`bot` 前缀或空格。不要公开 Token；如果泄露，请通过 BotFather 撤销并重新生成。[官方说明](https://core.telegram.org/bots/features#botfather)
+
+#### 2. 获取接收通知的 Chat ID
+
+以个人私聊为例：打开**你自己的机器人聊天，不是 BotFather**，点击 **Start / 开始**，再发送一条新消息，例如 `测试123`。机器人不回复也没关系。
+
+在浏览器地址栏输入下面的网址，把 `<TOKEN>` 整段替换为你的 Token，保留前面的 `bot`：
+
+```text
+https://api.telegram.org/bot<TOKEN>/getUpdates
+```
+
+找到与你刚发送的消息对应的 `message.chat.id`，例如：
+
+```json
+{
+  "ok": true,
+  "result": [{
+    "update_id": 987654321,
+    "message": {
+      "chat": { "id": 123456789, "type": "private" },
+      "text": "测试123"
+    }
+  }]
+}
+```
+
+这个示例的 **Chat ID 是 `123456789`**，不是 `update_id`，也不是 Token 冒号前的数字。不要分享包含 Token 的完整网址；使用后关闭页面，注意浏览器历史中也可能保留该网址。
+
+- **返回 `{"ok":true,"result":[]}`**：请求成功，但没有待读取的消息。确认向这个 Token 对应的机器人发送了新消息，再刷新；其他已接入的程序也可能已读取消息。
+- **提示 webhook 冲突**：该机器人已通过 webhook 接入其他服务，无法同时用 `getUpdates` 拉取。请从已有服务获取 Chat ID，或创建独立通知机器人，避免中断已有服务。
+- **群组通知**：将机器人加入目标群，发送 `/start@你的机器人用户名`，读取该消息的 `message.chat.id`，完整保留可能存在的负号。
+- **频道通知**：将机器人添加为有发帖权限的管理员，发一条频道消息，再读取对应的 `channel_post.chat.id`。
+
+参见 [Telegram getUpdates 文档](https://core.telegram.org/bots/api#getupdates)。
+
+#### 3. 填写 `.env`
+
+在桌面应用点击 **「打开数据目录」**，用纯文本编辑器打开 `.env`。没有该文件时，将 `.env.example` 复制为 `.env`，不要保存成 `.env.txt`。macOS 默认位置是 `~/.ai-cli-complete-notify/.env`，Finder 中按 `Command + Shift + .` 显示隐藏文件；其他运行方式的位置见上方说明。
+
+修改已有配置行，不要重复添加同名项：
+
+```env
+TELEGRAM_BOT_TOKEN=替换为你的Token
+TELEGRAM_CHAT_ID=替换为刚查到的ChatID
+```
+
+当前「通道」页只有启用开关，**没有 Token / Chat ID 输入框**，凭证请填写在 `.env` 中。
+
+#### 4. 如需代理，填写 HTTP 代理地址
+
+如果浏览器能访问 Telegram，但应用显示 `请求超时(10000ms)` 且 `proxyEnabled: false`，检查代理软件的 **HTTP 或 Mixed（混合）端口**，在 `.env` 添加：
+
+```env
+# 10818 仅为示例，请换成你的实际 HTTP / Mixed 端口
+HTTP_PROXY=http://127.0.0.1:10818
+HTTPS_PROXY=http://127.0.0.1:10818
+```
+
+**不加 `export` 或分号**。当前 Telegram 通道支持 HTTP(S) CONNECT 代理，不能把 SOCKS5 端口当作 HTTP 端口使用。保持代理软件运行；终端中执行的 `export` 不一定会被桌面启动的应用继承。
+
+#### 5. 检查配置并验证收件
+
+保存 `.env` 后完全退出并重启应用。在 **「通道」**启用 Telegram，同时确认 **「来源配置」**中要测试的来源已启用 Telegram，然后保存。
+
+进入 **「测试通知」→「检查 Telegram」**（2.17.0 起提供），或在源码目录运行 `node ai-reminder.js telegram-check`：
+
+| 结果 | 含义与处理 |
+| --- | --- |
+| `ok: true`、`stage: getChat` | Token 和聊天访问检查通过；确认 `botUsername` 是你的机器人。 |
+| `stage: getMe` 且 `401 Unauthorized` | 当前 Token 被拒绝，核对 `tokenSource` 配置来源；`/start` 不能修复认证失败。 |
+| 请求超时 | 检查网络和代理，超时不代表 Token 无效；使用代理时 `proxyEnabled` 应为 `true`。 |
+| `stage: getChat` 且 `ok: false` | 认证已通过，检查 Chat ID、是否开始私聊以及群组/频道访问权限。 |
+
+检查本身不发消息。最后在「测试通知」选择对应来源并发送测试，确认 **应用显示 `OK telegram`，且目标聊天实际收到消息**，才算完成送达验证。更多说明见 [Telegram 排障文档](docs/telegram-troubleshooting.md)。
+
+</details>
 
 ### 运行时配置（settings.json）
 
@@ -440,6 +584,7 @@ Windows 说明：
 
 macOS 说明：
 
+- 构建时，Node.js 和 Rust 的目标架构必须一致。sidecar 打包器会拒绝架构不匹配的 Node.js；仅传入 `--arch x64` 不会把 ARM 运行时转换为 Intel。维护者可运行 **Actions → Build Intel macOS app**，在 Intel 构建机上完成原生构建、架构校验和回归测试。
 - `npm run build:sidecar` 会按当前 Mac 架构生成 Tauri sidecar，例如 Apple Silicon 为 `src-tauri/binaries/ai-reminder-aarch64-apple-darwin`。
 - `npm run dist:mac:app` 输出可直接双击运行的 `.app`。
 - `npm run dist:mac:dmg` 输出 `.dmg`，适合发布给其他用户安装。
@@ -456,7 +601,7 @@ macOS 说明：
 - 🎯 **智能去抖**会根据 AI 消息类型自动调整等待时间，提升提醒准确性
 - 💡 **监听模式**适合长时间运行，建议设置开机自启或在后台终端中保持运行
 - 💡 **EXE 启动默认开启 Watch 监听**：如不需要可在顶部开关关闭。
-- 🪝 **Hooks / 插件模式**更适合 Claude Code / Gemini CLI / OpenCode，因为它直接使用显式完成事件；开启后，Watch 主要保留给 Codex。
+- 🪝 **Hooks / 插件模式**适用于 Claude Code / 支持原生 hooks 的 Codex 客户端 / Gemini CLI / OpenCode / ZCode，直接使用显式完成事件；推荐混合模式，同时保留 Watch 兜底。Codex 需在 `/hooks` 中完成 review / trust 并开启 hooks。
 - ✅ **确认提醒开关建议（默认关闭）**：当 AI 经常问你“是否继续/是否授权/请确认”时建议开启；如果你只想收到“任务完成提醒”，建议保持关闭，避免中间输出触发提醒。注意：若你在 `.env` 里设置了 `CODEX_COMPLETION_ONLY=1`，Codex 的确认提醒会被禁用（需改为 `0` 或删除该项）。
 - 🧭 **点击切回**更可靠，但仍受系统焦点限制；若是 VSCode 插件场景，建议选择 VSCode 目标，并确保 VSCode 未最小化/未被专注助手拦截
 
@@ -466,6 +611,48 @@ macOS 说明：
 <summary>展开 / 收起版本历史</summary>
 
 > `v2.x` 是当前的 Tauri 桌面版本线，`v1.x` 为旧的 Electron 版本线。
+
+
+### 2.18.0
+
+- 新增 WSL CLI 与 Hook 调用 Windows 桌面通知：复用现有 Windows PowerShell toast/balloon 链路，无需外网、MCP 或额外常驻服务；纯 Linux 行为保持不变。
+- 支持 [Issue #41](https://github.com/ZekerTop/ai-cli-complete-notify/issues/41) 提出的 Codex 原生 hooks：「Hooks / 插件集成」新增 Codex 卡片，CLI 支持安装、卸载、状态和预览。定义写入 `CODEX_HOME/hooks.json`（默认 `~/.codex/hooks.json`），保留其他 Hook。
+- `UserPromptSubmit` 记录开始时间，`Stop` 检查配置的耗时阈值；计时按 session 与 turn 隔离。阈值为 `0` 时每轮完成均可提醒，正数阈值需要有效的耗时记录。
+- Codex Hook 与 Watch 共用 session / turn 完成去重；根据 transcript 元数据过滤明确的 subagent 会话，以及 goal 为 `active` 或 `paused` 时的中间完成事件。
+- 已配置不等于实际执行：安装或更新后，需在 Codex `/hooks` 中 review / trust 新定义并确认 hooks 已开启。混合模式保留 Watch 兜底；未支持或未启用原生 hooks 的客户端继续使用 Watch。「仅 Watch」模式也会屏蔽 Codex hooks。
+- Codex Hook / Watch 并发候选使用原子占位，对同一 session / turn 去重；首次发送的全部通道失败时，后续候选可接棒，避免失败记录挡住 Watch 补发。
+- 异步 `Stop` 在 transcript 提供明确的 `task_complete` 时间时，用实际完成时间计算耗时阈值，避免处理延迟把短任务当成长任务。
+- 修复 macOS DMG 打包的 `LC_ALL` 环境兼容问题，保留应用拖入 Applications 的标准安装布局。
+
+### 2.17.0
+
+- 修复继承的旧环境变量覆盖明确指定 `.env` 的问题。测试通知页新增「检查 Telegram」，CLI 新增 `node ai-reminder.js telegram-check`，不发消息即可检查 Token、聊天及配置来源。见 [Telegram 排障说明](docs/telegram-troubleshooting.md)（Issue #37）。
+- 更新应用和托盘 logo：将 i 上方的圆点替换为带声波的倾斜铃铛；在左上角软件名左侧加入 logo，并协调标题、版本号和副标题布局。
+- 新增后台版本检查：应用启动时及运行期间每小时检查 GitHub 最新公开正式版本。发现新版本后，左上角版本号显示红点，点击进入「关于项目」查看版本信息和下载入口；保留手动重新检查，不自动下载安装。
+- 更新检测增加 10 秒超时并避免重复请求；后台检查失败时保留此前已发现的更新提示。
+- 修复栏目切换后沿用上一栏目滚动位置的问题，切换栏目时自动回到顶部。
+- 新增 ZCode Hook 来源，默认关闭；安装命令为 `node ai-reminder.js hooks install --target zcode`。使用 `UserPromptSubmit` 记录每轮开始时间，`Stop` 检查耗时阈值；不同项目和会话分别计时，重复 Stop 保持首次完成时间并去重。升级旧版 Hook 后需新建 ZCode 会话。
+- ZCode Hook 不再强制绕过耗时阈值；无效或非完成事件不会发送完成提醒。支持独立通道、`ZCODE_WEBHOOK_URLS` 和 AI 摘要；不增加 Watch 路径，「仅 Watch」模式也不会屏蔽 ZCode Hook。
+- 来源配置新增统一 logo，Claude 与 Codex 的说明补充桌面端；Codex 使用蓝色图标并调整留白比例。关于项目以可换行的来源图标替代文字列表，鼠标悬停显示名称，与来源配置共用列表。
+- 飞书卡片新增 ZCode logo。修复 ZCode 通道开关被全局关闭状态锁住的问题，保持其他来源逻辑不变；实际发送仍受全局通道开关控制。
+
+### 2.16.0
+
+- 精简界面布局：版本号改为标题右侧的圆角标签，增大字号并加粗，增加底色与边框，不再独占一行；移除 Desktop Console、Workspace Panel 和 Source Profile 装饰标题，为设置内容腾出更多空间。
+- 新增全局浅色、深色和跟随系统主题，通过语言选择下方的太阳、月亮、显示器图标切换；记住选择，跟随系统模式会响应系统外观变化。
+- 新增可选的 Herdr 第三方工具页面，通知默认关闭，支持独立渠道和重复通知风险确认，不影响现有 AI 集成。
+- 进入页面自动检测，检查与安装按钮增加步骤序号；成功显示绿色，需要配置显示黄色。关闭通知后渠道灰显、禁用并保留选择。补充问号说明、社区标签和插件仓库／贡献者 GitHub 链接。
+- 修复 macOS 图形界面的 Herdr 路径识别、已安装插件重连时重复下载、已启用插件重复激活，以及提示未随语言切换的问题；保留自定义配置、路径引用和内置运行时调用。
+
+### 2.15.0
+
+- 补充独立 Intel Mac 安装包 `ai-cli-complete-notify_2.15.0_x86_64.dmg`，现有 Apple Silicon `_aarch64.dmg` 保持不变。新增 Intel 原生构建工作流和运行时架构检查，避免生成混合架构的安装包。
+- 修复 Codex Desktop Fork 新对话重放历史完成提醒的问题。Fork 复制的历史在初始化完成且用户发出新消息前一直保持静默，只有新分支轮次会发送提醒。
+- 修复 Codex Watch 将 Guardian 内部审批会话误判为用户任务完成的问题。对象形式的 `source.subagent` 元数据（包括 `other: "guardian"`）现在统一走已有子会话过滤逻辑，父会话的正常完成提醒仍然保留。感谢 [Bbbbqsh](https://github.com/Bbbbqsh) 贡献 [PR #34](https://github.com/ZekerTop/ai-cli-complete-notify/pull/34)。
+- 新增 macOS **在程序坞中隐藏**开关，默认关闭，启动时恢复已保存的设置。隐藏 Dock 图标后仍可通过菜单栏图标操作。感谢 [8liang](https://github.com/8liang) 贡献 [PR #31](https://github.com/ZekerTop/ai-cli-complete-notify/pull/31)。
+- 改进 Telegram `401 / Unauthorized` 错误诊断：提示通过 `@BotFather` 重新生成无效或已撤销的 Bot Token，并撤销已泄露的 Token。此改动改善错误提示，不会自动修复无效凭证（[Issue #33](https://github.com/ZekerTop/ai-cli-complete-notify/issues/33)）。
+- 补齐 Vite 客户端类型声明，解决 TypeScript 无法识别 JPG 资源导入的问题，不改变界面。
+- 增加 Fork 时间戳重写、Watch 附着后分批复制、无明确边界时的继承轮次识别、attach/seed 竞态、不同工作区 `cwd`、Guardian 过滤且父会话正常完成，以及 Telegram 认证错误诊断的回归测试。
 
 ### 2.14.0
 
@@ -652,9 +839,17 @@ macOS 说明：
 
 感谢每一位通过代码、文档、反馈和建议参与项目建设的贡献者。
 
-<a href="https://github.com/ZekerTop/ai-cli-complete-notify/graphs/contributors">
- <img alt="贡献者" src="https://contrib.rocks/image?repo=ZekerTop/ai-cli-complete-notify&max=100&columns=12&anon=0" />
-</a>
+<p>
+  <a href="https://github.com/ZekerTop"><img src="docs/images/contributors/ZekerTop.svg" width="64" height="64" alt="ZekerTop" title="ZekerTop" /></a>
+  <a href="https://github.com/claude-notes"><img src="docs/images/contributors/claude-notes.svg" width="64" height="64" alt="claude-notes" title="claude-notes" /></a>
+  <a href="https://github.com/8liang"><img src="docs/images/contributors/8liang.svg" width="64" height="64" alt="8liang" title="8liang" /></a>
+  <a href="https://github.com/Atoony"><img src="docs/images/contributors/Atoony.svg" width="64" height="64" alt="Atoony" title="Atoony" /></a>
+  <a href="https://github.com/Windyskr"><img src="docs/images/contributors/Windyskr.svg" width="64" height="64" alt="Windyskr" title="Windyskr" /></a>
+  <a href="https://github.com/Bbbbqsh"><img src="docs/images/contributors/Bbbbqsh.svg" width="64" height="64" alt="Bbbbqsh" title="Bbbbqsh" /></a>
+  <a href="https://github.com/WALKERKILLER"><img src="docs/images/contributors/WALKERKILLER.svg" width="64" height="64" alt="WALKERKILLER" title="WALKERKILLER" /></a>
+  <a href="https://github.com/quecai-niu"><img src="docs/images/contributors/quecai-niu.svg" width="64" height="64" alt="quecai-niu" title="quecai-niu" /></a>
+  <a href="https://github.com/lishangwl"><img src="docs/images/contributors/lishangwl.svg" width="64" height="64" alt="lishangwl" title="lishangwl" /></a>
+</p>
 
 ## 🔗 链接
 

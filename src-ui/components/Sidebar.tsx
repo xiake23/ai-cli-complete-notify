@@ -1,18 +1,22 @@
+import logo from '../../desktop/assets/tray.png';
+import ThemeSelector from './ThemeSelector';
 import { useTranslation } from 'react-i18next';
 
 const NAV_ITEMS = [
   { id: 'notifications', key: 'nav.notifications', index: '01' },
   { id: 'sources', key: 'nav.sources', index: '02' },
   { id: 'integrations', key: 'nav.integrations', index: '03' },
-  { id: 'summary', key: 'nav.summary', index: '04' },
-  { id: 'system', key: 'nav.system', index: '05' },
-  { id: 'about-project', key: 'nav.aboutProject', index: '06' },
+  { id: 'third-party', key: 'nav.thirdParty', index: '04' },
+  { id: 'summary', key: 'nav.summary', index: '05' },
+  { id: 'system', key: 'nav.system', index: '06' },
+  { id: 'about-project', key: 'nav.aboutProject', index: '07' },
 ];
 
 interface SidebarProps {
   activePanel: string;
   onNavigate: (id: string) => void;
   version: string;
+  hasUpdate?: boolean;
   language: string;
   onLanguageChange: (lang: string) => void;
   watchRunning: boolean;
@@ -23,6 +27,7 @@ export default function Sidebar({
   activePanel,
   onNavigate,
   version,
+  hasUpdate = false,
   language,
   onLanguageChange,
   watchRunning,
@@ -34,14 +39,20 @@ export default function Sidebar({
     <aside className="sidebar-shell overflow-auto">
       <div className="sidebar-stack">
         <div className="sidebar-card">
-          <p className="sidebar-kicker">Desktop console</p>
-          <h1 className="sidebar-title">
-            AI CLI
-            <br />
-            Notify
-          </h1>
-          <div className="mt-3 inline-flex items-center rounded-full border border-white/[0.08] bg-black/20 px-3 py-1 text-[10px] tracking-[0.18em] text-muted uppercase">
-            Version {version}
+          <div className="flex items-center gap-2.5">
+            <img src={logo} alt="" width={48} height={48} className="shrink-0" />
+            <h1 className="sidebar-title">
+              AI CLI
+              <br />
+              Notify
+            </h1>
+            <button type="button" onClick={() => onNavigate('about-project')}
+              aria-label={hasUpdate ? t('aboutProject.update.newVersionHint') : t('section.aboutProject.title')}
+              title={hasUpdate ? t('aboutProject.update.newVersionHint') : t('section.aboutProject.title')}
+              className="relative ml-auto shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] border border-[rgba(110,123,255,0.36)] bg-[rgba(110,123,255,0.14)] px-2 py-1 text-[11px] font-semibold text-[var(--text)]">
+              v{version}
+              {hasUpdate && <span aria-hidden="true" className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500" />}
+            </button>
           </div>
           <div className="sidebar-subtitle">{t('brand.subtitle')}</div>
 
@@ -75,6 +86,7 @@ export default function Sidebar({
                 <option value="en">English</option>
               </select>
             </div>
+            <ThemeSelector />
           </div>
         </div>
 

@@ -1,12 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { spawnSync } = require('child_process');
 
 const HOOK_MARKER = 'ai-cli-complete-notify';
 const HOOK_MARKER_ALT = 'ai-reminder';
 const HOOK_FLAG = '--from-hook';
 const OPENCODE_PLUGIN_FILE = 'ai-cli-complete-notify.js';
 const OPENCODE_PLUGIN_MARKER = `${HOOK_MARKER}:opencode-plugin`;
+const HERDR_PLUGIN_REPO = '8liang/herdr-ai-notify';
+const HERDR_PLUGIN_ID = '8liang.herdr-ai-notify';
+const HERDR_CONFIG_ENV_FILE = 'config.env';
 
 function getExePath() {
   try {
@@ -48,6 +52,11 @@ function getClaudeSettingsPath() {
 
 function getGeminiSettingsPath() {
   return path.join(os.homedir(), '.gemini', 'settings.json');
+}
+
+function getCodexSettingsPath() {
+  const codexHome = String(process.env.CODEX_HOME || '').trim();
+  return path.join(codexHome ? path.resolve(codexHome) : path.join(os.homedir(), '.codex'), 'hooks.json');
 }
 
 function getOpenCodeConfigDir() {
@@ -319,6 +328,97 @@ function getGeminiHookStatus() {
   const list = Array.isArray(hooks.AfterAgent) ? hooks.AfterAgent : [];
   const installed = list.some((definition) =>
     extractHookCommands(definition).some((hook) => isOurGeminiHook(hook))
+  );
+  return { installed, settingsPath };
+}
+
+function readCodexHookSettings(settingsPath) {
+  try {
+    if (!fs.existsSync(settingsPath)) return { ok: true, settings: {} };
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      return { ok: false, error: `Codex hooks config is not a JSON object: ${settingsPath}` };
+    }
+    if (settings.hooks !== undefined
+      && (!settings.hooks || typeof settings.hooks !== 'object' || Array.isArray(settings.hooks))) {
+      return { ok: false, error: `Codex hooks config has an invalid hooks object: ${settingsPath}` };
+    }
+    for (const event of ['UserPromptSubmit', 'Stop']) {
+      if (settings.hooks?.[event] !== undefined && !Array.isArray(settings.hooks[event])) {
+        return { ok: false, error: `Codex ${event} hooks are not an array: ${settingsPath}` };
+      }
+    }
+    return { ok: true, settings };
+  } catch (_error) {
+    return { ok: false, error: `Codex hooks config could not be read as valid JSON: ${settingsPath}` };
+  }
+}
+
+function isOurCodexHook(hook) {
+  return isOurHookCommand(hook?.command)
+    && /(?:^|\s)--source(?:\s+|=)codex(?:\s|$)/.test(hook.command);
+}
+
+function removeOurCodexHooks(blocks) {
+  return blocks.flatMap((block) => {
+    if (!block || typeof block !== 'object' || !Array.isArray(block.hooks)) return [block];
+    const remaining = block.hooks.filter((hook) => !isOurCodexHook(hook));
+    if (remaining.length === block.hooks.length) return [block];
+    return remaining.length ? [{ ...block, hooks: remaining }] : [];
+  });
+}
+
+function buildCodexHooks(exePath) {
+  const prefix = exePath.endsWith('.js')
+    ? `${shellQuote(process.execPath)} ${shellQuote(exePath)}`
+    : shellQuote(exePath);
+  const command = `${prefix} notify --source codex --from-hook`;
+  return {
+    UserPromptSubmit: [{ hooks: [{ type: 'command', command }] }],
+    Stop: [{ hooks: [{ type: 'command', command, async: true, timeout: 120 }] }]
+  };
+}
+
+function installCodexHook(exePath) {
+  const settingsPath = getCodexSettingsPath();
+  const parsed = readCodexHookSettings(settingsPath);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const settings = parsed.settings;
+  if (!settings.hooks) settings.hooks = {};
+  const desired = buildCodexHooks(exePath);
+  for (const event of Object.keys(desired)) {
+    settings.hooks[event] = [
+      ...removeOurCodexHooks(settings.hooks[event] || []),
+      ...desired[event]
+    ];
+  }
+  writeJsonFile(settingsPath, settings);
+  return { ok: true, settingsPath };
+}
+
+function uninstallCodexHook() {
+  const settingsPath = getCodexSettingsPath();
+  const parsed = readCodexHookSettings(settingsPath);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const settings = parsed.settings;
+  if (!settings.hooks) return { ok: true, settingsPath };
+  for (const event of ['UserPromptSubmit', 'Stop']) {
+    if (!Array.isArray(settings.hooks[event])) continue;
+    const remaining = removeOurCodexHooks(settings.hooks[event]);
+    if (remaining.length) settings.hooks[event] = remaining;
+    else delete settings.hooks[event];
+  }
+  if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+  writeJsonFile(settingsPath, settings);
+  return { ok: true, settingsPath };
+}
+
+function getCodexHookStatus() {
+  const settingsPath = getCodexSettingsPath();
+  const parsed = readCodexHookSettings(settingsPath);
+  const installed = parsed.ok && ['UserPromptSubmit', 'Stop'].every((event) =>
+    (parsed.settings.hooks?.[event] || []).some((block) =>
+      Array.isArray(block?.hooks) && block.hooks.some(isOurCodexHook))
   );
   return { installed, settingsPath };
 }
@@ -601,26 +701,467 @@ function getOpenCodeHookStatus() {
   };
 }
 
-function getHookStatus() {
+// ---------------------------------------------------------------------------
+// Herdr plugin mode
+// ---------------------------------------------------------------------------
+
+function getHerdrBin() {
+  const override = String(process.env.HERDR_BIN_PATH || '').trim();
+  if (override) return override;
+
+  if (process.platform === 'win32') {
+    // herdr.exe may be available via PATH on Windows
+    return 'herdr.exe';
+  }
+  if (process.platform === 'darwin') {
+    // Finder-launched apps do not inherit the terminal's PATH.
+    const directories = [
+      ...(process.env.PATH || '').split(path.delimiter).filter(Boolean),
+      path.join(os.homedir(), '.local', 'bin'),
+      '/opt/homebrew/bin',
+      '/usr/local/bin',
+    ];
+    for (const directory of directories) {
+      const candidate = path.join(directory, 'herdr');
+      try {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        if (fs.statSync(candidate).isFile()) return candidate;
+      } catch (_error) {
+        // Try the next install location.
+      }
+    }
+  }
+  return 'herdr';
+}
+
+function runHerdrCommand(args, options = {}) {
+  const bin = getHerdrBin();
+  try {
+    const result = spawnSync(bin, args, {
+      encoding: 'utf8',
+      env: { ...process.env },
+      timeout: options.timeout || 60000,
+      windowsHide: true,
+    });
+    if (result.error) {
+      return {
+        ok: false,
+        error: result.error && result.error.message
+          ? `Failed to run \`${bin}\`: ${result.error.message}`
+          : `Failed to run \`${bin}\``,
+        status: result.status,
+        errorCode: result.error.code === 'ETIMEDOUT' ? 'timeout' : result.error.code === 'ENOENT' ? 'not_found' : 'command_failed',
+        stdout: String(result.stdout || ''),
+        stderr: String(result.stderr || ''),
+      };
+    }
+    let errorCode = 'command_failed';
+    try {
+      const response = JSON.parse(result.stdout || result.stderr || '{}');
+      if (response.error?.code === 'server_not_running') errorCode = 'server_not_running';
+    } catch (_error) { /* Plain-text CLI output has no structured error code. */ }
+    return {
+      errorCode: result.status === 0 ? null : errorCode,
+      ok: result.status === 0,
+      status: result.status,
+      stdout: String(result.stdout || ''),
+      stderr: String(result.stderr || ''),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Failed to run \`${bin}\`: ${error && error.message ? error.message : String(error)}`,
+      stdout: '',
+      stderr: '',
+    };
+  }
+}
+
+function getHerdrPluginDir() {
+  const base = process.env.HERDR_CONFIG_DIR
+    ? path.join(String(process.env.HERDR_CONFIG_DIR).trim(), 'plugins', 'config')
+    : path.join(os.homedir(), '.config', 'herdr', 'plugins', 'config');
+  return path.join(base, HERDR_PLUGIN_ID);
+}
+
+function buildHerdrConfigEnv(bridgePath, previous = '') {
+  if (/[\r\n\0]/.test(bridgePath)) throw new Error('Invalid bridge path');
+  // Herdr sources this file with Bash, including on Windows.
+  const assignment = `AI_REMINDER_PATH='${bridgePath.replace(/'/g, "'\\''")}'`;
+  const pattern = /^[ \t]*(?:export[ \t]+)?AI_REMINDER_PATH[ \t]*=.*$/gm;
+  if (pattern.test(previous)) return previous.replace(pattern, () => assignment);
+  return previous + (previous && !previous.endsWith('\n') ? '\n' : '') + assignment + '\n';
+}
+
+function buildHerdrBridge(exePath) {
+  const quote = (value) => `'${value.replace(/'/g, "'\\''")}'`;
+  const command = exePath.endsWith('.js')
+    ? `${quote(process.execPath)} ${quote(exePath)}` : quote(exePath);
+  return '#!/bin/sh\nset -eu\nunset AI_CLI_COMPLETE_NOTIFY_DESKTOP_STDOUT\n'
+    + (process.env.AI_CLI_COMPLETE_NOTIFY_PACKAGED === '1' ? 'export AI_CLI_COMPLETE_NOTIFY_PACKAGED=1\n' : '')
+    + `exec ${command} "$@"\n`;
+}
+
+function parseHerdrPluginList(raw) {
+  // `herdr plugin list --json` returns {"id":"cli:plugin","result":{"plugins":[...]}}
+  try {
+    const parsed = JSON.parse(raw);
+    const payload = parsed && parsed.result && typeof parsed.result === 'object'
+      ? parsed.result
+      : parsed;
+    if (!Array.isArray(payload && payload.plugins)) throw new Error('Invalid Herdr plugin list');
+    const plugins = payload.plugins;
+    return plugins.find((plugin) => plugin && plugin.plugin_id === HERDR_PLUGIN_ID) || null;
+  } catch (_error) {
+    throw new Error('Invalid Herdr plugin list');
+  }
+}
+
+function getHerdrHookStatus() {
+  const bin = getHerdrBin();
+  const run = runHerdrCommand(['plugin', 'list', '--json'], { timeout: 5000 });
+  let installed = false;
+  let enabled = false;
+  let plugin = null;
+
+  if (run.ok) {
+    try {
+      plugin = parseHerdrPluginList(run.stdout);
+    } catch (error) {
+      run.ok = false;
+      run.error = error.message;
+    }
+    if (plugin) {
+      installed = true;
+      enabled = Boolean(plugin.enabled);
+    }
+  }
+
+  let configured = false;
+  let settingsPath = path.join(getHerdrPluginDir(), HERDR_CONFIG_ENV_FILE);
+  if (installed) {
+    const configDir = runHerdrCommand(['plugin', 'config-dir', HERDR_PLUGIN_ID], { timeout: 5000 });
+    const resolved = String(configDir.stdout || '').replace(/\r?\n$/, '');
+    if (configDir.ok && path.isAbsolute(resolved)) {
+      settingsPath = path.join(resolved, HERDR_CONFIG_ENV_FILE);
+      try {
+        const bridgePath = path.join(resolved, 'ai-cli-complete-notify-bridge');
+        const env = fs.readFileSync(settingsPath, 'utf8');
+        configured = env === buildHerdrConfigEnv(bridgePath, env)
+          && fs.readFileSync(bridgePath, 'utf8') === buildHerdrBridge(getExePath());
+      } catch (_error) {
+        configured = false;
+      }
+    }
+  }
+
+  return {
+    installed,
+    enabled,
+    configured,
+    herdrBin: bin,
+    dependencies: Object.fromEntries(['bash', 'python3'].map((name) => {
+      const check = spawnSync(name, ['--version'], { timeout: 5000, encoding: 'utf8', windowsHide: true });
+      return [name, check.status === 0];
+    })),
+    available: run.ok,
+    error: run.ok ? null : (run.error || `Herdr status failed (${run.status})`),
+    settingsPath,
+    plugin,
+  };
+}
+
+function installHerdrHook(exePath) {
+  const bin = getHerdrBin();
+
+  // Reconnecting an installed plugin must not depend on a fresh GitHub download.
+  const before = runHerdrCommand(['plugin', 'list', '--json'], { timeout: 5000 });
+  let existing = null;
+  try {
+    if (before.ok) existing = parseHerdrPluginList(before.stdout);
+  } catch (_error) { /* Unknown status still allows an explicit installation attempt. */ }
+  const installResult = existing
+    ? { ok: true }
+    : runHerdrCommand(['plugin', 'install', HERDR_PLUGIN_REPO, '--yes']);
+  if (!installResult.ok) {
+    const detail = installResult.stderr || installResult.stdout || installResult.error || '';
+    return {
+      ok: false,
+      error: `herdr plugin install failed: ${String(detail).trim()}`,
+      herdrBin: bin,
+      step: 'install',
+      errorCode: installResult.errorCode,
+    };
+  }
+
+  // 2. Resolve the plugin config directory and write config.env with the
+  //    detected ai-reminder path so notify.sh knows where to find us.
+  const configDirResult = runHerdrCommand(['plugin', 'config-dir', HERDR_PLUGIN_ID]);
+  const resolved = String(configDirResult.stdout || '').replace(/\r?\n$/, '');
+  if (!configDirResult.ok || !path.isAbsolute(resolved)) {
+    return { ok: false, error: 'Herdr did not return an absolute config directory', step: 'config' };
+  }
+  const configPath = path.join(resolved, HERDR_CONFIG_ENV_FILE);
+  const bridgePath = path.join(resolved, 'ai-cli-complete-notify-bridge');
+  try {
+    fs.mkdirSync(resolved, { recursive: true });
+    const previous = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
+    const next = buildHerdrConfigEnv(bridgePath, previous);
+    fs.writeFileSync(bridgePath, buildHerdrBridge(exePath), { mode: 0o700 });
+    fs.chmodSync(bridgePath, 0o700);
+    fs.writeFileSync(configPath, next, { mode: 0o600 });
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Failed to write herdr plugin config: ${error && error.message ? error.message : String(error)}`,
+      herdrBin: bin,
+      step: 'config',
+    };
+  }
+
+  // Plugin delivery is separate from sources.herdr.enabled; configuration never changes that switch.
+  const listResult = runHerdrCommand(['plugin', 'list', '--json'], { timeout: 5000 });
+  let alreadyEnabled = false;
+  try {
+    alreadyEnabled = listResult.ok && parseHerdrPluginList(listResult.stdout)?.enabled === true;
+  } catch (_error) { /* Fall back to explicit activation if status cannot be read. */ }
+  const enableResult = alreadyEnabled
+    ? { ok: true }
+    : runHerdrCommand(['plugin', 'enable', HERDR_PLUGIN_ID]);
+  if (!enableResult.ok) {
+    const detail = enableResult.stderr || enableResult.stdout || enableResult.error || '';
+    return {
+      ok: false,
+      error: `herdr plugin enable failed: ${String(detail).trim()}`,
+      herdrBin: bin,
+      settingsPath: configPath,
+      step: 'enable',
+      errorCode: enableResult.errorCode,
+    };
+  }
+
+  return {
+    ok: true,
+    herdrBin: bin,
+    settingsPath: configPath,
+    pluginId: HERDR_PLUGIN_ID,
+    pluginRepo: HERDR_PLUGIN_REPO,
+  };
+}
+
+function uninstallHerdrHook() {
+  const bin = getHerdrBin();
+  const uninstallResult = runHerdrCommand(['plugin', 'uninstall', HERDR_PLUGIN_REPO]);
+  if (!uninstallResult.ok) {
+    const detail = uninstallResult.stderr || uninstallResult.stdout || uninstallResult.error || '';
+    return {
+      ok: false,
+      error: `herdr plugin uninstall failed: ${String(detail).trim()}`,
+      herdrBin: bin,
+    };
+  }
+
+  return {
+    ok: true,
+    herdrBin: bin,
+    pluginId: HERDR_PLUGIN_ID,
+    pluginRepo: HERDR_PLUGIN_REPO,
+  };
+}
+
+function getHerdrConfigPreview(exePath) {
+  const bin = getHerdrBin();
+  const configPath = path.join(getHerdrPluginDir(), HERDR_CONFIG_ENV_FILE);
+  const lines = [];
+  lines.push(`# Herdr plugin integration preview`);
+  lines.push(`# plugin repo : ${HERDR_PLUGIN_REPO}`);
+  lines.push(`# plugin id   : ${HERDR_PLUGIN_ID}`);
+  lines.push(`# herdr binary: ${bin}`);
+  lines.push(`# config path : ${configPath}`);
+  lines.push('');
+  lines.push('# Commands that will be run on install:');
+  lines.push(`#   ${bin} plugin install ${HERDR_PLUGIN_REPO} --yes`);
+  lines.push(`#   ${bin} plugin config-dir ${HERDR_PLUGIN_ID}`);
+  lines.push(`#   ${bin} plugin enable ${HERDR_PLUGIN_ID}`);
+  lines.push('');
+  lines.push('# config.env that will be written:');
+  lines.push(buildHerdrConfigEnv(path.join(getHerdrPluginDir(), 'ai-cli-complete-notify-bridge')));
+  lines.push('# Bridge uses the current runtime; Herdr notifications must be enabled separately.');
+  lines.push(buildHerdrBridge(exePath));
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// ZCode hook mode (user-level ~/.zcode/cli/config.json)
+// ---------------------------------------------------------------------------
+
+function getZcodeConfigDir() {
+  const override = String(process.env.ZCODE_CONFIG_DIR || '').trim();
+  if (override) return path.resolve(override);
+  return path.join(os.homedir(), '.zcode', 'cli');
+}
+
+function getZcodeConfigPath() {
+  return path.join(getZcodeConfigDir(), 'config.json');
+}
+
+function buildZcodeProcessHook(exePath) {
+  const args = ['notify', '--source', 'zcode', '--from-hook'];
+  // ZCode runs process hooks as a raw argv vector without a shell, which is
+  // the reliable shape on Windows. Resolve node explicitly so PATH is not a factor.
+  if (exePath.endsWith('.js')) {
+    return { type: 'process', command: process.execPath, args: [exePath, ...args] };
+  }
+  return { type: 'process', command: exePath, args };
+}
+
+function isOurZcodeHook(hook) {
+  if (!hook || typeof hook !== 'object') return false;
+  if (typeof hook.command === 'string'
+    && isOurHookCommand(hook.command)
+    && hook.command.includes('--source zcode')) return true;
+  if (hook.type !== 'process' || !Array.isArray(hook.args)) return false;
+  const sourceIndex = hook.args.indexOf('--source');
+  return hook.args.includes(HOOK_FLAG) && sourceIndex !== -1 && hook.args[sourceIndex + 1] === 'zcode';
+}
+
+function removeOurZcodeStopEntries(entries) {
+  return entries
+    .map((block) => {
+      if (!block || typeof block !== 'object' || !Array.isArray(block.hooks)) return block;
+      const remainingHooks = block.hooks.filter((hook) => !isOurZcodeHook(hook));
+      if (remainingHooks.length === block.hooks.length) return block;
+      if (remainingHooks.length === 0) return null;
+      return { ...block, hooks: remainingHooks };
+    })
+    .filter(Boolean);
+}
+
+function readZcodeConfig(configPath) {
+  // Unlike the Claude/Gemini installers, a failed parse must never clobber the
+  // user's entire ZCode CLI configuration with a fresh object.
+  try {
+    if (!fs.existsSync(configPath)) return { ok: true, config: {} };
+    const raw = fs.readFileSync(configPath, 'utf8').trim();
+    if (!raw) return { ok: true, config: {} };
+    const config = JSON.parse(raw);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      return { ok: false, error: `ZCode config is not a JSON object: ${configPath}` };
+    }
+    return { ok: true, config };
+  } catch (_error) {
+    return { ok: false, error: `ZCode config is not valid JSON: ${configPath}` };
+  }
+}
+
+function installZcodeHook(exePath) {
+  const configPath = getZcodeConfigPath();
+  const parsed = readZcodeConfig(configPath);
+  if (!parsed.ok) {
+    return { ok: false, error: parsed.error };
+  }
+  const config = parsed.config;
+
+  if (!config.hooks || typeof config.hooks !== 'object' || Array.isArray(config.hooks)) {
+    config.hooks = {};
+  }
+  // ZCode runs configuration-file hooks only when the runner is explicitly
+  // enabled, so a hook entry alone would never fire.
+  config.hooks.enabled = true;
+
+  if (!config.hooks.events || typeof config.hooks.events !== 'object' || Array.isArray(config.hooks.events)) {
+    config.hooks.events = {};
+  }
+
+  for (const event of ['UserPromptSubmit', 'Stop']) {
+    const existingEntries = Array.isArray(config.hooks.events[event])
+      ? removeOurZcodeStopEntries(config.hooks.events[event]) : [];
+    config.hooks.events[event] = [...existingEntries, { hooks: [buildZcodeProcessHook(exePath)] }];
+  }
+
+  writeJsonFile(configPath, config);
+  return { ok: true, settingsPath: configPath };
+}
+
+function uninstallZcodeHook() {
+  const configPath = getZcodeConfigPath();
+  const config = readJsonFile(configPath);
+  const hooks = config.hooks && typeof config.hooks === 'object' && !Array.isArray(config.hooks)
+    ? config.hooks
+    : null;
+  if (hooks?.events && typeof hooks.events === 'object' && !Array.isArray(hooks.events)) {
+    for (const event of ['UserPromptSubmit', 'Stop']) {
+      if (!Array.isArray(hooks.events[event])) continue;
+      const remaining = removeOurZcodeStopEntries(hooks.events[event]);
+      if (remaining.length) hooks.events[event] = remaining;
+      else delete hooks.events[event];
+    }
+    if (Object.keys(hooks.events).length === 0) delete hooks.events;
+    writeJsonFile(configPath, config);
+  }
+
+  return { ok: true, settingsPath: configPath };
+}
+
+function getZcodeHookStatus() {
+  const settingsPath = getZcodeConfigPath();
+  const config = readJsonFile(settingsPath);
+  const hooks = config.hooks && typeof config.hooks === 'object' && !Array.isArray(config.hooks)
+    ? config.hooks
+    : {};
+  const events = hooks.events && typeof hooks.events === 'object' && !Array.isArray(hooks.events)
+    ? hooks.events
+    : {};
+  const installed = ['UserPromptSubmit', 'Stop'].every((event) =>
+    Array.isArray(events[event]) && events[event].some((block) =>
+      Array.isArray(block?.hooks) && block.hooks.some(isOurZcodeHook))
+  );
+
+  return { installed, hooksEnabled: hooks.enabled === true, settingsPath };
+}
+
+function getZcodeConfigPreview(exePath) {
+  return JSON.stringify({
+    hooks: {
+      enabled: true,
+      events: {
+        UserPromptSubmit: [{ hooks: [buildZcodeProcessHook(exePath)] }],
+        Stop: [{ hooks: [buildZcodeProcessHook(exePath)] }]
+      }
+    }
+  }, null, 2);
+}
+
+function getHookStatus(target) {
+  if (target === 'herdr') return { herdr: getHerdrHookStatus() };
   return {
     claude: getClaudeHookStatus(),
+    codex: getCodexHookStatus(),
     gemini: getGeminiHookStatus(),
-    opencode: getOpenCodeHookStatus()
+    opencode: getOpenCodeHookStatus(),
+    zcode: getZcodeHookStatus(),
+    herdr: { supported: true }
   };
 }
 
 function installHook(target) {
   const exePath = getExePath();
   if (target === 'claude') return installClaudeHook(exePath);
+  if (target === 'codex') return installCodexHook(exePath);
   if (target === 'gemini') return installGeminiHook(exePath);
   if (target === 'opencode') return installOpenCodeHook(exePath);
+  if (target === 'herdr') return installHerdrHook(exePath);
+  if (target === 'zcode') return installZcodeHook(exePath);
   return { ok: false, error: `Unknown target: ${target}` };
 }
 
 function uninstallHook(target) {
   if (target === 'claude') return uninstallClaudeHook();
+  if (target === 'codex') return uninstallCodexHook();
   if (target === 'gemini') return uninstallGeminiHook();
   if (target === 'opencode') return uninstallOpenCodeHook();
+  if (target === 'herdr') return uninstallHerdrHook();
+  if (target === 'zcode') return uninstallZcodeHook();
   return { ok: false, error: `Unknown target: ${target}` };
 }
 
@@ -630,12 +1171,21 @@ function getHookConfigPreview(target) {
     const hooks = buildClaudeHooks(exePath);
     return JSON.stringify({ hooks }, null, 2);
   }
+  if (target === 'codex') {
+    return JSON.stringify({ hooks: buildCodexHooks(exePath) }, null, 2);
+  }
   if (target === 'gemini') {
     const hooks = { AfterAgent: buildGeminiHooks(exePath) };
     return JSON.stringify({ hooks }, null, 2);
   }
   if (target === 'opencode') {
     return buildOpenCodePlugin(exePath);
+  }
+  if (target === 'herdr') {
+    return getHerdrConfigPreview(exePath);
+  }
+  if (target === 'zcode') {
+    return getZcodeConfigPreview(exePath);
   }
   return '';
 }

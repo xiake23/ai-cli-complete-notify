@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { getCodexHookNotificationContext } = require('../src/codex-hook');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -410,7 +411,7 @@ test('codex watch only notifies after an active goal stops', async (t) => {
   assert.equal(notifications[2].outputContent, 'Goal 已阻塞');
 });
 
-test('codex watch suppresses Codex Desktop subagent completions from session metadata', async (t) => {
+test('codex watch suppresses Codex Desktop subagent and guardian completions from session metadata', async (t) => {
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-reminder-codex-home-'));
   const previousEnv = {
     CODEX_WATCH_BACKEND: process.env.CODEX_WATCH_BACKEND,
@@ -468,7 +469,8 @@ test('codex watch suppresses Codex Desktop subagent completions from session met
   fs.mkdirSync(sessionDir, { recursive: true });
   const parentFile = path.join(sessionDir, 'parent.jsonl');
   const childFile = path.join(sessionDir, 'child.jsonl');
-  for (const filePath of [parentFile, childFile]) {
+  const guardianFile = path.join(sessionDir, 'guardian.jsonl');
+  for (const filePath of [parentFile, childFile, guardianFile]) {
     fs.writeFileSync(filePath, '', 'utf8');
   }
 
@@ -527,16 +529,51 @@ test('codex watch suppresses Codex Desktop subagent completions from session met
   await sleep(650);
   assert.equal(notifications.length, 0, `subagent completion should not notify:\n${logs.join('\n')}`);
 
+  appendJsonl(guardianFile, [
+    {
+      timestamp: 6,
+      type: 'session_meta',
+      payload: {
+        id: 'guardian-thread',
+        session_id: 'parent-thread',
+        parent_thread_id: 'parent-thread',
+        cwd: '/workspace/app',
+        originator: 'codex_vscode',
+        thread_source: 'guardian_review',
+        source: { subagent: { other: 'guardian' } },
+      },
+    },
+    { timestamp: 7, type: 'event_msg', payload: { type: 'task_started', turn_id: 'guardian-turn' } },
+    { timestamp: 8, type: 'event_msg', payload: { type: 'agent_message', content: '{"outcome":"allow"}' } },
+    {
+      timestamp: 9,
+      type: 'event_msg',
+      payload: { type: 'task_complete', turn_id: 'guardian-turn', last_agent_message: '{"outcome":"allow"}' },
+    },
+  ]);
+
+  await sleep(650);
+  assert.equal(notifications.length, 0, `guardian completion should not notify:\n${logs.join('\n')}`);
+
   appendJsonl(parentFile, [
-    { timestamp: 6, type: 'event_msg', payload: { type: 'task_started', turn_id: 'parent-turn' } },
-    { timestamp: 7, type: 'event_msg', payload: { type: 'agent_message', content: 'parent done' } },
-    { timestamp: 8, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'parent-turn', last_agent_message: 'parent done' } },
+    { timestamp: 10, type: 'event_msg', payload: { type: 'task_started', turn_id: 'parent-turn' } },
+    { timestamp: 11, type: 'event_msg', payload: { type: 'agent_message', content: 'parent done' } },
+    { timestamp: 12, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'parent-turn', last_agent_message: 'parent done' } },
   ]);
 
   await waitFor(() => notifications.length === 1);
   assert.equal(notifications[0].source, 'codex');
   assert.equal(notifications[0].cwd, '/workspace/app');
   assert.equal(notifications[0].outputContent, 'parent done');
+  const hookContext = getCodexHookNotificationContext({
+    hook_event_name: 'Stop',
+    session_id: 'parent-thread',
+    turn_id: 'parent-turn',
+    cwd: '/workspace/app',
+    last_assistant_message: 'parent done',
+  }, 'Codex 完成');
+  assert.equal(notifications[0].dedupeKey, hookContext.dedupeKey,
+    'the native hook and watch fallback must share the completion dedupe key');
 });
 
 test('codex watch loads subagent metadata from the file head when tail seed misses it', async (t) => {
@@ -765,7 +802,7 @@ test('codex watch does not block a same-cwd session completion when another sess
   );
 });
 
-test('codex watch does not replay copied fork session history from seed catchup', async (t) => {
+test('codex watch notifies only the new fork turn added between attach and seed priming', async (t) => {
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-reminder-codex-fork-home-'));
   const previousEnv = {
     CODEX_WATCH_BACKEND: process.env.CODEX_WATCH_BACKEND,
@@ -821,16 +858,189 @@ test('codex watch does not replay copied fork session history from seed catchup'
 
   const sessionDir = path.join(tempHome, '.codex', 'sessions', '2026', '05', '14');
   fs.mkdirSync(sessionDir, { recursive: true });
+  const sourceFile = path.join(sessionDir, 'rollout-source-thread.jsonl');
   const forkFile = path.join(sessionDir, 'fork.jsonl');
-  const copiedAt = Date.now() - 10000;
+
+  const sourceAt = Date.now() - 120000;
+  appendJsonl(sourceFile, [
+    {
+      timestamp: sourceAt,
+      type: 'session_meta',
+      payload: {
+        id: 'source-thread',
+        cwd: '/workspace/original',
+        originator: 'Codex Desktop',
+        source: 'vscode',
+        thread_source: 'user',
+      },
+    },
+    { timestamp: sourceAt + 100, type: 'event_msg', payload: { type: 'task_started', turn_id: 'old-turn-1' } },
+    { timestamp: sourceAt + 200, type: 'event_msg', payload: { type: 'agent_message', content: 'old one done' } },
+    { timestamp: sourceAt + 300, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'old-turn-1', last_agent_message: 'old one done' } },
+    { timestamp: sourceAt + 400, type: 'event_msg', payload: { type: 'task_started', turn_id: 'old-turn-2' } },
+    { timestamp: sourceAt + 500, type: 'event_msg', payload: { type: 'agent_message', content: 'old two done' } },
+    { timestamp: sourceAt + 600, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'old-turn-2', last_agent_message: 'old two done' } },
+  ]);
+
+  fs.writeFileSync(forkFile, '', 'utf8');
+  await sleep(20);
+  const copiedAt = Date.now();
 
   appendJsonl(forkFile, [
+    {
+      timestamp: copiedAt,
+      type: 'session_meta',
+      payload: {
+        id: 'fork-thread',
+        cwd: '/workspace/fork-worktree',
+        originator: 'Codex Desktop',
+        source: 'vscode',
+        thread_source: 'user',
+        forked_from_id: 'source-thread',
+      },
+    },
+  ]);
+
+  const forkPayload = [
+    {
+      timestamp: copiedAt,
+      type: 'session_meta',
+      payload: {
+        id: 'source-thread',
+        cwd: '/workspace/original',
+        originator: 'Codex Desktop',
+        source: 'vscode',
+        thread_source: 'user',
+      },
+    },
     { timestamp: copiedAt, type: 'event_msg', payload: { type: 'task_started', turn_id: 'old-turn-1' } },
     { timestamp: copiedAt + 100, type: 'event_msg', payload: { type: 'agent_message', content: 'old one done' } },
     { timestamp: copiedAt + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'old-turn-1', last_agent_message: 'old one done' } },
     { timestamp: copiedAt + 300, type: 'event_msg', payload: { type: 'task_started', turn_id: 'old-turn-2' } },
     { timestamp: copiedAt + 400, type: 'event_msg', payload: { type: 'agent_message', content: 'old two done' } },
     { timestamp: copiedAt + 500, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'old-turn-2', last_agent_message: 'old two done' } },
+    {
+      timestamp: copiedAt + 600,
+      type: 'event_msg',
+      payload: { type: 'thread_settings_applied', thread_id: 'fork-thread' },
+    },
+    {
+      timestamp: copiedAt + 700,
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'continue from this fork' }],
+      },
+    },
+    { timestamp: copiedAt + 800, type: 'event_msg', payload: { type: 'task_started', turn_id: 'new-branch-turn' } },
+    { timestamp: copiedAt + 900, type: 'event_msg', payload: { type: 'agent_message', content: 'new branch done' } },
+    { timestamp: copiedAt + 1000, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'new-branch-turn', last_agent_message: 'new branch done' } },
+  ];
+
+  const logs = [];
+  let appendedDuringAttach = false;
+  const stop = startWatch({
+    sources: ['codex'],
+    intervalMs: 50,
+    log: (line) => {
+      logs.push(line);
+      if (!appendedDuringAttach && line.includes(`following ${forkFile}`)) {
+        appendedDuringAttach = true;
+        appendJsonl(forkFile, forkPayload);
+      }
+    },
+    confirmAlert: { enabled: false },
+  });
+  t.after(() => stop());
+
+  await waitFor(() => notifications.length >= 1);
+  await sleep(650);
+  assert.equal(notifications.length, 1, `attach/seed catchup should notify only the new branch turn:\n${logs.join('\n')}`);
+  assert.equal(notifications[0].source, 'codex');
+  assert.equal(notifications[0].cwd, '/workspace/fork-worktree');
+  assert.equal(notifications[0].outputContent, 'new branch done');
+});
+
+test('codex watch ignores fork history appended in batches after attach', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-reminder-codex-live-fork-home-'));
+  const previousEnv = {
+    CODEX_WATCH_BACKEND: process.env.CODEX_WATCH_BACKEND,
+    CODEX_FOLLOW_TOP_N: process.env.CODEX_FOLLOW_TOP_N,
+    CODEX_SEED_CATCHUP_MS: process.env.CODEX_SEED_CATCHUP_MS,
+    CODEX_STRICT_FINAL_ANSWER: process.env.CODEX_STRICT_FINAL_ANSWER,
+    CODEX_TUI_LOG_PATH: process.env.CODEX_TUI_LOG_PATH,
+    HOME: process.env.HOME,
+    USERPROFILE: process.env.USERPROFILE,
+  };
+
+  const notifications = [];
+  const enginePath = require.resolve('../src/engine');
+  const watchPath = require.resolve('../src/watch');
+  const originalEngineCache = require.cache[enginePath];
+  const originalWatchCache = require.cache[watchPath];
+
+  function restore() {
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    if (originalEngineCache) require.cache[enginePath] = originalEngineCache;
+    else delete require.cache[enginePath];
+    if (originalWatchCache) require.cache[watchPath] = originalWatchCache;
+    else delete require.cache[watchPath];
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+
+  t.after(restore);
+
+  process.env.CODEX_WATCH_BACKEND = 'sessions';
+  process.env.CODEX_FOLLOW_TOP_N = '5';
+  process.env.CODEX_SEED_CATCHUP_MS = '60000';
+  process.env.CODEX_STRICT_FINAL_ANSWER = '1';
+  process.env.CODEX_TUI_LOG_PATH = path.join(tempHome, 'missing-codex-tui.log');
+  process.env.HOME = tempHome;
+  process.env.USERPROFILE = tempHome;
+
+  require.cache[enginePath] = {
+    id: enginePath,
+    filename: enginePath,
+    loaded: true,
+    exports: {
+      sendNotifications: async (args) => {
+        notifications.push(args);
+        return { results: [{ ok: true }] };
+      },
+    },
+  };
+  delete require.cache[watchPath];
+  const { startWatch } = require('../src/watch');
+
+  const sessionDir = path.join(tempHome, '.codex', 'sessions', '2026', '09', '01');
+  fs.mkdirSync(sessionDir, { recursive: true });
+  const sourceFile = path.join(sessionDir, 'rollout-source-live-thread.jsonl');
+  const forkFile = path.join(sessionDir, 'fork-live-copy.jsonl');
+  const sourceAt = Date.now() - 120000;
+  appendJsonl(sourceFile, [
+    { timestamp: sourceAt, type: 'session_meta', payload: { id: 'source-live-thread', cwd: '/workspace/original' } },
+    { timestamp: sourceAt + 100, type: 'event_msg', payload: { type: 'task_started', turn_id: 'copied-turn-1' } },
+    { timestamp: sourceAt + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'copied-turn-1', last_agent_message: 'copied one done' } },
+    { timestamp: sourceAt + 300, type: 'event_msg', payload: { type: 'task_started', turn_id: 'copied-turn-2' } },
+    { timestamp: sourceAt + 400, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'copied-turn-2', last_agent_message: 'copied two done' } },
+  ]);
+  appendJsonl(forkFile, [
+    {
+      timestamp: Date.now(),
+      type: 'session_meta',
+      payload: {
+        id: 'fork-live-thread',
+        cwd: '/workspace/fork-worktree',
+        originator: 'Codex Desktop',
+        source: 'vscode',
+        thread_source: 'user',
+        forked_from_id: 'source-live-thread',
+      },
+    },
   ]);
 
   const logs = [];
@@ -842,18 +1052,191 @@ test('codex watch does not replay copied fork session history from seed catchup'
   });
   t.after(() => stop());
 
-  await sleep(900);
-  assert.equal(notifications.length, 0, `fork seed history should not notify:\n${logs.join('\n')}`);
+  await waitFor(() => logs.some((line) => line.includes(`following ${forkFile}`)));
+
+  const firstBatchAt = Date.now();
+  appendJsonl(forkFile, [
+    {
+      timestamp: firstBatchAt,
+      type: 'session_meta',
+      payload: {
+        id: 'source-live-thread',
+        cwd: '/workspace/original',
+        originator: 'Codex Desktop',
+        source: 'vscode',
+        thread_source: 'user',
+      },
+    },
+    { timestamp: firstBatchAt, type: 'event_msg', payload: { type: 'task_started', turn_id: 'copied-turn-1' } },
+    { timestamp: firstBatchAt + 100, type: 'event_msg', payload: { type: 'agent_message', content: 'copied one done' } },
+    { timestamp: firstBatchAt + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'copied-turn-1', last_agent_message: 'copied one done' } },
+  ]);
+  await sleep(1300);
+
+  const secondBatchAt = Date.now();
+  appendJsonl(forkFile, [
+    { timestamp: secondBatchAt, type: 'event_msg', payload: { type: 'task_started', turn_id: 'copied-turn-2' } },
+    { timestamp: secondBatchAt + 100, type: 'event_msg', payload: { type: 'agent_message', content: 'copied two done' } },
+    { timestamp: secondBatchAt + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'copied-turn-2', last_agent_message: 'copied two done' } },
+  ]);
+  await sleep(650);
+
+  assert.equal(notifications.length, 0, `fork history appended after attach should not notify:\n${logs.join('\n')}`);
 
   appendJsonl(forkFile, [
-    { timestamp: Date.now(), type: 'event_msg', payload: { type: 'task_started', turn_id: 'new-branch-turn' } },
-    { timestamp: Date.now() + 100, type: 'event_msg', payload: { type: 'agent_message', content: 'new branch done' } },
-    { timestamp: Date.now() + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'new-branch-turn', last_agent_message: 'new branch done' } },
+    {
+      timestamp: Date.now(),
+      type: 'event_msg',
+      payload: { type: 'thread_settings_applied', thread_id: 'fork-live-thread' },
+    },
+  ]);
+  await sleep(650);
+  assert.equal(notifications.length, 0, `fork boundary should not notify before a new user message:\n${logs.join('\n')}`);
+
+  const newTurnAt = Date.now();
+  appendJsonl(forkFile, [
+    {
+      timestamp: newTurnAt,
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'start the new fork turn' }],
+      },
+    },
+    { timestamp: newTurnAt + 100, type: 'event_msg', payload: { type: 'task_started', turn_id: 'fork-live-new-turn' } },
+    { timestamp: newTurnAt + 200, type: 'event_msg', payload: { type: 'agent_message', content: 'live fork done' } },
+    { timestamp: newTurnAt + 300, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'fork-live-new-turn', last_agent_message: 'live fork done' } },
   ]);
 
   await waitFor(() => notifications.length === 1);
+  await sleep(650);
+  assert.equal(notifications.length, 1, `new turn after fork boundary should notify exactly once:\n${logs.join('\n')}`);
   assert.equal(notifications[0].source, 'codex');
-  assert.equal(notifications[0].outputContent, 'new branch done');
+  assert.equal(notifications[0].cwd, '/workspace/fork-worktree');
+  assert.equal(notifications[0].outputContent, 'live fork done');
+});
+
+test('codex watch detects the first new fork turn when thread_settings_applied is missing', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-reminder-codex-quiet-fork-home-'));
+  const previousEnv = {
+    CODEX_WATCH_BACKEND: process.env.CODEX_WATCH_BACKEND,
+    CODEX_FOLLOW_TOP_N: process.env.CODEX_FOLLOW_TOP_N,
+    CODEX_SEED_CATCHUP_MS: process.env.CODEX_SEED_CATCHUP_MS,
+    CODEX_STRICT_FINAL_ANSWER: process.env.CODEX_STRICT_FINAL_ANSWER,
+    CODEX_TUI_LOG_PATH: process.env.CODEX_TUI_LOG_PATH,
+    HOME: process.env.HOME,
+    USERPROFILE: process.env.USERPROFILE,
+  };
+
+  const notifications = [];
+  const enginePath = require.resolve('../src/engine');
+  const watchPath = require.resolve('../src/watch');
+  const originalEngineCache = require.cache[enginePath];
+  const originalWatchCache = require.cache[watchPath];
+
+  function restore() {
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    if (originalEngineCache) require.cache[enginePath] = originalEngineCache;
+    else delete require.cache[enginePath];
+    if (originalWatchCache) require.cache[watchPath] = originalWatchCache;
+    else delete require.cache[watchPath];
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+
+  t.after(restore);
+
+  process.env.CODEX_WATCH_BACKEND = 'sessions';
+  process.env.CODEX_FOLLOW_TOP_N = '5';
+  process.env.CODEX_SEED_CATCHUP_MS = '60000';
+  process.env.CODEX_STRICT_FINAL_ANSWER = '1';
+  process.env.CODEX_TUI_LOG_PATH = path.join(tempHome, 'missing-codex-tui.log');
+  process.env.HOME = tempHome;
+  process.env.USERPROFILE = tempHome;
+
+  require.cache[enginePath] = {
+    id: enginePath,
+    filename: enginePath,
+    loaded: true,
+    exports: {
+      sendNotifications: async (args) => {
+        notifications.push(args);
+        return { results: [{ ok: true }] };
+      },
+    },
+  };
+  delete require.cache[watchPath];
+  const { startWatch } = require('../src/watch');
+
+  const sessionDir = path.join(tempHome, '.codex', 'sessions', '2026', '09', '01');
+  fs.mkdirSync(sessionDir, { recursive: true });
+  const sourceFile = path.join(sessionDir, 'rollout-source-without-settings-thread.jsonl');
+  const forkFile = path.join(sessionDir, 'fork-without-settings.jsonl');
+  const sourceAt = Date.now() - 120000;
+  appendJsonl(sourceFile, [
+    { timestamp: sourceAt, type: 'session_meta', payload: { id: 'source-without-settings-thread', cwd: '/workspace/original' } },
+    { timestamp: sourceAt + 100, type: 'event_msg', payload: { type: 'task_started', turn_id: 'quiet-copied-turn-1' } },
+    { timestamp: sourceAt + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'quiet-copied-turn-1', last_agent_message: 'quiet copied one done' } },
+    { timestamp: sourceAt + 300, type: 'event_msg', payload: { type: 'task_started', turn_id: 'quiet-copied-turn-2' } },
+    { timestamp: sourceAt + 400, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'quiet-copied-turn-2', last_agent_message: 'quiet copied two done' } },
+  ]);
+  appendJsonl(forkFile, [
+    {
+      timestamp: Date.now(),
+      type: 'session_meta',
+      payload: {
+        id: 'fork-without-settings-thread',
+        cwd: '/workspace/fork-without-settings',
+        originator: 'Codex Desktop',
+        source: 'vscode',
+        thread_source: 'user',
+        forked_from_id: 'source-without-settings-thread',
+      },
+    },
+  ]);
+
+  const logs = [];
+  const stop = startWatch({
+    sources: ['codex'],
+    intervalMs: 50,
+    log: (line) => logs.push(line),
+    confirmAlert: { enabled: false },
+  });
+  t.after(() => stop());
+
+  await waitFor(() => logs.some((line) => line.includes(`following ${forkFile}`)));
+
+  const copiedAt = Date.now();
+  appendJsonl(forkFile, [
+    { timestamp: copiedAt, type: 'event_msg', payload: { type: 'task_started', turn_id: 'quiet-copied-turn-1' } },
+    { timestamp: copiedAt + 100, type: 'event_msg', payload: { type: 'agent_message', content: 'quiet copied one done' } },
+    { timestamp: copiedAt + 200, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'quiet-copied-turn-1', last_agent_message: 'quiet copied one done' } },
+    { timestamp: copiedAt + 300, type: 'event_msg', payload: { type: 'task_started', turn_id: 'quiet-copied-turn-2' } },
+    { timestamp: copiedAt + 400, type: 'event_msg', payload: { type: 'agent_message', content: 'quiet copied two done' } },
+    { timestamp: copiedAt + 500, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'quiet-copied-turn-2', last_agent_message: 'quiet copied two done' } },
+    {
+      timestamp: copiedAt + 600,
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'start after the inherited fork copy' }],
+      },
+    },
+    { timestamp: copiedAt + 700, type: 'event_msg', payload: { type: 'task_started', turn_id: 'quiet-fork-new-turn' } },
+    { timestamp: copiedAt + 800, type: 'event_msg', payload: { type: 'agent_message', content: 'quiet fork done' } },
+    { timestamp: copiedAt + 900, type: 'event_msg', payload: { type: 'task_complete', turn_id: 'quiet-fork-new-turn', last_agent_message: 'quiet fork done' } },
+  ]);
+
+  await waitFor(() => notifications.length === 1);
+  await sleep(650);
+  assert.equal(notifications.length, 1, `first new fork turn should notify exactly once:\n${logs.join('\n')}`);
+  assert.equal(notifications[0].source, 'codex');
+  assert.equal(notifications[0].cwd, '/workspace/fork-without-settings');
+  assert.equal(notifications[0].outputContent, 'quiet fork done');
 });
 
 test('codex watch only uses explicit request_user_input for confirm alerts', async (t) => {

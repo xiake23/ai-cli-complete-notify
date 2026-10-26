@@ -2,22 +2,36 @@
 
 <img width="128" src="https://github.com/ZekerTop/ai-cli-complete-notify/blob/main/desktop/assets/tray.png?raw=true">
 
-# AI CLI Complete Notify (v2.14.0)
+# AI CLI Complete Notify (v2.18.0)
 
-![Version](https://img.shields.io/badge/version-2.14.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.18.0-blue.svg)
 ![License](https://img.shields.io/badge/license-ISC-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20WSL-lightgrey.svg)
 [![macOS DMG 다운로드](https://img.shields.io/github/v/release/ZekerTop/ai-cli-complete-notify?label=macOS%20DMG&logo=apple)](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest)
 
 [English](README.md) | [简体中文](README_zh.md) | [繁體中文](README_zh-TW.md) | 한국어 | [日本語](README_ja.md)
 
-![UI Preview](docs/images/通道.png)
+![UI Preview](docs/images/home-v2.17.0.png)
 
 </div>
 
+## Sponsors
+
+> [👉 이 프로젝트를 후원하고 싶으신가요?](mailto:top.zeker@gmail.com)
+
+<table>
+  <tr>
+    <td align="center" width="180">
+      <a href="https://gptplus.uno"><img src="https://www.gptplus.uno/image/logo.png" alt="gptplus.uno" width="100" /></a><br />
+      <a href="https://gptplus.uno"><strong>gptplus.uno</strong></a>
+    </td>
+    <td><a href="https://gptplus.uno"><strong>gptplus.uno</strong></a> 는 ChatGPT Plus / Pro 구매·업그레이드 안내, 요금제 선택 조언, FAQ 및 자가 문제 해결 안내를 제공하며 WeChat Pay와 Alipay 결제를 지원합니다. 이 오픈소스 프로젝트를 후원해 주셔서 감사합니다.</td>
+  </tr>
+</table>
+
 ### 📖 소개
 
-AI CLI Complete Notify는 Claude Code / Codex / OpenCode / Gemini 작업 완료 알림 도구입니다. AI 도구가 긴 작업을 마쳤을 때 데스크톱 알림, 소리, Webhook, Telegram, Email 등 여러 채널로 알려 주기 때문에 컴퓨터 앞에서 계속 기다릴 필요가 없습니다.
+AI CLI Complete Notify는 Claude Code / Codex / OpenCode / Gemini / ZCode 작업 완료 알림 도구입니다. AI 도구가 긴 작업을 마쳤을 때 데스크톱 알림, 소리, Webhook, Telegram, Email 등 여러 채널로 알려 주기 때문에 컴퓨터 앞에서 계속 기다릴 필요가 없습니다.
 
 **지원 알림 채널:**
 
@@ -28,17 +42,17 @@ AI CLI Complete Notify는 Claude Code / Codex / OpenCode / Gemini 작업 완료 
 ## ✨ 주요 기능
 
 - 🎯 **스마트 디바운스**: 작업 유형에 따라 알림 시점을 자동 조정합니다. 도구 호출이 있으면 기본 60초, 없으면 기본 15초를 기다립니다.
-- 🔀 **소스별 제어**: Claude / Codex / OpenCode / Gemini를 각각 켜고 끌 수 있으며, 시간 임계값과 알림 채널도 따로 설정할 수 있습니다.
+- 🔀 **소스별 제어**: Claude / Codex / OpenCode / Gemini / ZCode를 각각 켜고 끌 수 있으며, 시간 임계값과 알림 채널도 따로 설정할 수 있습니다.
 - 📡 **멀티 채널 알림**: Webhook, Telegram, Email, 데스크톱 알림, 사운드를 동시에 사용할 수 있습니다.
 - ⏱️ **소요 시간 임계값**: 지정한 시간보다 오래 걸린 작업에만 알림을 보내 불필요한 방해를 줄입니다.
-- 🪝 **Hooks + Watch 혼합 방식**: Claude Code / Gemini CLI는 네이티브 Hook을, OpenCode는 전역 플러그인 이벤트를 사용할 수 있으며 Codex는 주로 로그 Watch 방식을 사용합니다.
+- 🪝 **Hooks + Watch 혼합 방식**: Claude Code / Codex / Gemini CLI / ZCode는 네이티브 Hook을, OpenCode는 전역 플러그인 이벤트를 사용할 수 있으며 Watch는 폴백으로 유지됩니다.
 - 🧠 **AI 요약(선택 사항)**: 작업 완료 후 짧은 요약을 생성하고, 실패하거나 시간 초과되면 원래 내용으로 되돌아갑니다.
 - 🖥️ **데스크톱 앱**: GUI 설정, 언어 전환, 트레이/메뉴 막대 숨김, 로그인 시 자동 시작을 지원합니다.
 - 🔐 **설정 분리**: 실행 설정과 민감한 토큰/키를 분리하여 `.env`로 관리할 수 있습니다.
 
 ## 💡 권장 설정
 
-최상의 경험을 위해 Claude Code / Codex / OpenCode / Gemini를 사용할 때 AI 도구에 충분한 파일 읽기/쓰기 권한을 부여하는 것을 권장합니다.
+최상의 경험을 위해 Claude Code / Codex / OpenCode / Gemini를 사용할 때 AI 도구에 충분한 파일 읽기/쓰기 권한을 부여하는 것을 권장합니다. ZCode는 영향을 받지 않습니다. 네이티브 `Stop` Hook으로 완료를 알리며 Watch 경로가 없어 이 권한이 필요하지 않습니다.
 
 이렇게 하면 로컬 로그가 안정적으로 기록되고, Watch 모드가 작업 완료 상태를 더 정확하게 판단하여 누락 알림이나 오탐을 줄일 수 있습니다.
 
@@ -46,13 +60,14 @@ AI CLI Complete Notify는 Claude Code / Codex / OpenCode / Gemini 작업 완료 
 
 - Claude Code는 하나의 요청을 여러 하위 작업으로 나눌 수 있습니다. 알림이 과도하게 발생하지 않도록 이 도구는 전체 턴이 끝났을 때만 알림을 보냅니다.
 - Watch 모드는 로그 변화를 기반으로 완료를 추정하므로 조용한 시간이 지나야 알림이 발생합니다. 즉시 알림이 아닙니다.
-- 더 빠르고 정확한 알림이 필요하면 Claude Code / Gemini CLI는 Hook을, OpenCode는 전역 플러그인을 우선 사용하세요. Codex 또는 일반 fallback 용도에는 Watch를 사용합니다.
+- 더 빠르고 정확한 알림이 필요하면 Claude Code / Codex / Gemini CLI / ZCode는 Hook을, OpenCode는 전역 플러그인을 우선 사용하세요. Codex는 네이티브 hooks 지원 버전과 신뢰 승인이 필요합니다. 네이티브 hooks를 지원하지 않거나 hooks가 꺼진 클라이언트는 Watch를 계속 사용하며, 혼합 모드에서도 Watch 폴백을 유지합니다.
+- 혼합 모드에서는 Hook과 Watch를 함께 사용하며 같은 완료 이벤트의 중복 알림을 제거합니다. Watch 전용 모드는 Claude/Codex/Gemini hooks를 차단하지만, Hook/플러그인 전용 소스인 OpenCode, Herdr, ZCode는 차단하지 않습니다.
 
 ## Hooks와 Watch의 차이
 
-- **Hook / 플러그인 이벤트**는 AI CLI가 직접 내보내는 생명주기 이벤트를 사용하므로 실제 완료 시점에 더 가깝습니다.
+- **Hook / 플러그인 이벤트**는 AI CLI가 직접 내보내는 생명주기 이벤트(예: Claude Code / Codex / ZCode의 `Stop`, Gemini CLI의 `AfterAgent`, OpenCode의 `session.status` idle)를 사용하므로 실제 완료 시점에 더 가깝습니다.
 - **Hook**은 해당 도구에 대해 장시간 백그라운드 로그 감시기를 유지할 필요가 없습니다.
-- **Watch**는 범용 fallback입니다. Codex와 Hook이 구성되지 않은 환경에서 유용합니다.
+- **Watch**는 범용 fallback입니다. 네이티브 hooks가 미지원, 비활성화 또는 미구성 상태인 Codex 클라이언트에서 유용합니다.
 
 ## 🚀 빠른 시작
 
@@ -67,16 +82,18 @@ AI CLI Complete Notify는 Claude Code / Codex / OpenCode / Gemini 작업 완료 
 
 #### macOS: DMG 직접 설치(권장)
 
-1. Apple Silicon Mac에서는 [GitHub Releases](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest)에서 최신 `ai-cli-complete-notify_<version>_aarch64.dmg`를 다운로드합니다.
+1. [GitHub Releases](https://github.com/ZekerTop/ai-cli-complete-notify/releases/latest)에서 Mac에 맞는 DMG를 다운로드합니다.
+   - Apple Silicon(M 시리즈): `ai-cli-complete-notify_<version>_aarch64.dmg`
+   - Intel: `ai-cli-complete-notify_<version>_x86_64.dmg`
 2. DMG를 열고 `ai-cli-complete-notify.app`을 `Applications`로 드래그합니다.
 3. 처음 실행할 때 macOS에서 개발자를 확인할 수 없다고 표시하면 앱을 마우스 오른쪽 버튼으로 클릭하고 **열기**를 선택합니다.
 4. 패키징된 앱은 `~/.ai-cli-complete-notify/.env`에서 알림 설정을 읽습니다. 첫 실행 시 설정이 없으면 같은 디렉터리에 `.env.example`을 생성합니다.
 
-> 현재 Release DMG는 Apple Silicon(`arm64`)용입니다. Intel Mac 사용자는 아래 단계에 따라 소스에서 빌드할 수 있습니다.
+> macOS 13.5 이상이 필요합니다(포함된 Node.js 런타임의 최소 요구 사항). "이 Mac에 관하여"에서 칩 또는 프로세서를 확인할 수 있습니다. 아키텍처별로 분리된 패키지이며 Universal 바이너리가 아닙니다. 두 패키지 모두 Node.js를 포함하므로 DMG 설치 시 Node.js/npm이나 Rust/Cargo를 별도로 설치할 필요가 없습니다.
 
 #### 소스에서 실행(macOS / Linux)
 
-아래 단계는 Linux, Intel Mac, 개발 또는 소스에서 직접 빌드하려는 경우에만 필요합니다. 소스/개발 모드에는 Node.js/npm과 Rust/Cargo가 필요합니다. Tauri는 `npm run dev` 실행 중 `cargo`를 호출합니다. `cargo --version`이 실패하면 먼저 [Rust 공식 설치 페이지](https://www.rust-lang.org/tools/install)에서 Rust를 설치하세요.
+아래 단계는 Linux, 개발 또는 소스에서 직접 빌드하려는 경우에만 필요합니다. 소스/개발 모드에는 Node.js/npm과 Rust/Cargo가 필요합니다. Tauri는 `npm run dev` 실행 중 `cargo`를 호출합니다. `cargo --version`이 실패하면 먼저 [Rust 공식 설치 페이지](https://www.rust-lang.org/tools/install)에서 Rust를 설치하세요.
 
 ```bash
 # 저장소 복제
@@ -113,11 +130,11 @@ npm run dist:mac:dmg
 
 - **상단 바**: 언어 전환, Watch 토글, 창 제어.
 - **채널 설정**: Webhook, Telegram, Email, 데스크톱 알림, 사운드 설정.
-- **소스 설정**: Claude / Codex / OpenCode / Gemini별 활성화 상태와 시간 임계값 설정.
+- **소스 설정**: Claude / Codex / OpenCode / Gemini / ZCode별 활성화 상태와 시간 임계값 설정.
 - **감시 설정**: 폴링 간격과 디바운스 시간 설정.
 - **확인 알림(기본 OFF)**: Codex가 선택/제출이 필요한 대화형 프롬프트를 표시할 때만 알림을 보냅니다.
 - **AI 요약**: API URL, Key, 모델, 타임아웃 fallback 설정.
-- **고급 옵션**: 제목 접두어, 닫기 동작, 자동 시작, 조용한 시작, 알림 클릭 후 돌아가기.
+- **고급 옵션**: 제목 접두어, 닫기 동작, 자동 시작, 조용한 시작, Dock 아이콘 숨기기(macOS 전용), 알림 클릭 후 돌아가기.
 
 ### 화면 미리보기
 
@@ -127,6 +144,12 @@ npm run dist:mac:dmg
 ![Hook Integration](docs/images/Hook集成.png)
 ![AI Summary](docs/images/AI摘要.png)
 ![Advanced Settings](docs/images/系统设置.png)
+
+### 트레이와 메뉴 막대
+
+"트레이로 숨기기"를 선택하면 창을 숨기고 앱은 계속 실행됩니다. Windows에서는 아이콘이 작업 표시줄의 ^ 영역에 있을 수 있으며, macOS에서는 메뉴 막대 아이콘으로 창을 다시 열 수 있습니다. 조용한 시작을 켜면 실행 시 창을 숨기고 팝업도 표시하지 않습니다.
+
+macOS에서는 **Advanced → Hide from Dock (show only in macOS menu bar)** 에서 Dock 아이콘을 숨길 수 있습니다. 기본값은 OFF이며, 설정은 `ui.hideDockIcon`에 저장됩니다. 조용한 시작 및 창 닫기 동작과는 별개입니다. 숨긴 뒤에는 메뉴 막대 아이콘을 클릭하거나 해당 메뉴에서 **Show**를 선택하여 창을 다시 열 수 있습니다. Ice 같은 메뉴 막대 관리 도구를 사용 중인데 아이콘이 보이지 않으면 숨김 영역과 메뉴 막대의 여유 공간을 확인하고 관리 도구의 레이아웃을 새로 고치세요.
 
 ## 💻 CLI 사용법
 
@@ -160,11 +183,44 @@ node ai-reminder.js hooks status
 # Claude Code Hook 설치
 node ai-reminder.js hooks install --target claude
 
+# Codex Hook 설치(사용자 수준, 이후 Codex /hooks에서 review / trust 필요)
+node ai-reminder.js hooks install --target codex
+
+# Codex Hook 상태 확인, 미리보기 또는 제거
+node ai-reminder.js hooks status --target codex
+node ai-reminder.js hooks preview --target codex
+node ai-reminder.js hooks uninstall --target codex
+
 # Gemini CLI Hook 설치
 node ai-reminder.js hooks install --target gemini
 
 # OpenCode 전역 플러그인 설치
 node ai-reminder.js hooks install --target opencode
+
+# Herdr 플러그인(herdr-ai-notify) 설치 및 자동 설정
+node ai-reminder.js hooks install --target herdr
+
+# ZCode Hook 설치(사용자 수준, ZCode의 hooks runner 자동 활성화)
+node ai-reminder.js hooks install --target zcode
+```
+
+Codex는 `CODEX_HOME/hooks.json`(기본 `~/.codex/hooks.json`)에 `UserPromptSubmit`과 `Stop` command hooks를 등록하고 기존 설정과 다른 Hook을 유지합니다. 제거 시 이 도구의 핸들러만 삭제합니다. `UserPromptSubmit`이 타이머를 시작하고 `Stop`이 소요 시간 임계값을 확인하며, `0`이면 매 턴 완료 시 알림을 허용합니다. **구성됨은 활성화를 뜻하지 않습니다.** 설치나 업데이트 후 네이티브 hooks를 지원하는 Codex에서 `/hooks`를 열고 새 정의를 review / trust한 뒤 hooks가 켜져 있는지 확인하세요. 설치기는 신뢰 결정을 변경하거나 꺼진 hooks runner를 켜지 않습니다. 네이티브 hooks를 지원하지 않거나 hooks가 꺼진 클라이언트는 Watch를 계속 사용하며 혼합 모드에서도 Watch 폴백을 유지합니다.
+
+ZCode는 Hook 전용이며 Watch 경로가 없고 기본적으로 비활성화됩니다(`sources.zcode.enabled`). 설치 시 사용자 수준 `~/.zcode/cli/config.json`에 `UserPromptSubmit`과 `Stop` process Hook을 등록하고 `hooks.enabled`를 켭니다. 다른 Hook과 기존 설정은 유지하며, 제거 시 이 도구의 핸들러만 삭제합니다.
+ZCode 소스를 활성화하고 **Hooks / Plugin Integration**에서 Hook을 설치한 뒤 새 ZCode 세션을 시작하세요. `UserPromptSubmit`이 타이머를 시작하고 `Stop`이 소요 시간 임계값을 확인합니다. `0`이면 매 턴 완료 시 알림을 허용하고, 양수이면 해당 분 수 이상 실행되어야 합니다. 시작 시간이 없으면 양수 임계값에서는 알림을 보내지 않습니다. 기존 Stop 전용 설정은 Hook을 다시 설치해야 합니다. ZCode 채널 설정은 개별적으로 변경할 수 있지만, 실제 전송에는 해당 전역 채널의 활성화와 설정이 필요합니다.
+ZCode Hook을 설치하거나 업데이트한 뒤에는 **ZCode를 완전히 종료하고 다시 실행한 다음 새 세션을 시작하세요**. 설치 전에 만든 세션은 시작 시 불러온 Hook 설정을 유지할 수 있습니다. 테스트 알림은 도착하지만 실제 작업 알림이 오지 않는다면 ZCode 소스와 대상 채널이 활성화되어 있는지 확인하고, 임계값을 잠시 `0`으로 설정한 뒤 재시작한 새 세션에서 테스트하세요. 테스트 알림은 직접 전송되며 소요 시간 임계값을 건너뛰므로 실제 Hook 실행 여부를 검증하지 않습니다.
+
+### 선택적 타사 도구 (Herdr)
+
+**Third-party tools → Herdr**를 열면 상태를 자동으로 확인합니다. **① Check → ② Install and connect plugin…** 순서로 진행한 다음 알림을 별도로 켜세요. Herdr는 한 창에서 Codex 같은 AI 도구를 실행하고 관리하는 독립적인 터미널 도구입니다. Herdr 안에서 실행한 작업만 알림 대상이며, Codex 데스크톱 사용자에게는 필요하지 않습니다. Herdr ≥ 0.7.0, Bash, Python 3가 필요하며 macOS 앱은 내장 Node를 사용합니다. 준비 완료·성공은 녹색, 설정이 필요한 상태는 노란색으로 표시합니다. Herdr를 끄면 채널 조작이 회색으로 비활성화되지만 선택은 유지됩니다. 일반 시작 및 watch에서는 Herdr를 호출하지 않으며 페이지를 열어도 자동 설치하지 않습니다. 사용자 설정과 기존 AI 연동을 유지하고, 선택했으며 전역으로 활성화된 채널만 사용합니다. 같은 작업에 기본 연동과 Herdr를 함께 사용하면 중복 알림이 발생할 수 있습니다. **?**를 클릭하면 설명을 펼치거나 접을 수 있습니다. **Plugin repository**는 [herdr-ai-notify](https://github.com/8liang/herdr-ai-notify)로, 기여자 링크는 [8liang](https://github.com/8liang)의 GitHub 프로필로 이동합니다.
+
+```bash
+# Explicit plugin status (ordinary hooks status does not run Herdr)
+node ai-reminder.js hooks status --target herdr
+# Configuration does not enable this app's Herdr notifications
+node ai-reminder.js hooks install --target herdr
+# Enable only after reviewing duplicate-notification risks
+node ai-reminder.js config --set '{"sources":{"herdr":{"enabled":true}}}'
 ```
 
 ### Watch 로그 감시 모드
@@ -218,6 +274,7 @@ WEBHOOK_URLS=https://open.feishu.cn/open-apis/bot/v2/hook/XXXXX
 # CODEX_WEBHOOK_URLS=https://example.com/codex-hook
 # GEMINI_WEBHOOK_URLS=https://example.com/gemini-hook
 # OPENCODE_WEBHOOK_URLS=https://example.com/opencode-hook
+# ZCODE_WEBHOOK_URLS=https://example.com/zcode-hook
 NOTIFICATION_ENABLED=true
 SOUND_ENABLED=true
 
@@ -232,6 +289,15 @@ TELEGRAM_CHAT_ID=your_chat_id
 # SUMMARY_MODEL=gpt-4o-mini
 # SUMMARY_TIMEOUT_MS=30000
 ```
+
+<a id="telegram-token-및-chat-id"></a>
+
+<details>
+<summary><strong>📱 Telegram 설정: Token 및 Chat ID (클릭하여 펼치기)</strong></summary>
+
+[영문 설정 안내](README.md#telegram-get-your-token-and-chat-id)에서 봇 생성, 토큰 및 Chat ID 확인, 빈 결과 해결, `.env`, HTTP 프록시 설정과 실제 알림 수신 확인 절차를 볼 수 있습니다.
+
+</details>
 
 ### `settings.json`
 
@@ -264,6 +330,7 @@ npm run dist:mac:dmg
 
 macOS 참고:
 
+- Node.js와 Rust의 대상 아키텍처를 일치시켜 빌드하세요. sidecar 빌더는 아키텍처가 맞지 않는 Node.js를 거부합니다. `--arch x64`만 지정해도 ARM 런타임이 Intel용으로 변환되지는 않습니다. 유지 관리자는 **Actions → Build Intel macOS app**에서 Intel 머신의 네이티브 빌드, 아키텍처 검사 및 회귀 테스트를 실행할 수 있습니다.
 - 일반 사용 시 `.dmg`에서 앱을 `/Applications`로 드래그한 뒤 실행하세요.
 - Desktop 또는 Downloads에서 `.app`을 장기간 직접 실행하면 macOS가 해당 폴더 접근 권한을 반복적으로 요청할 수 있습니다.
 - 공개 배포 시 Apple Developer 서명과 notarization이 필요할 수 있습니다.
@@ -273,7 +340,7 @@ macOS 참고:
 - `notify` 명령은 시간 임계값을 무시하고 즉시 알림을 보냅니다.
 - Webhook은 기본적으로 Feishu post 형식을 사용합니다. WeCom/DingTalk는 텍스트 형식으로 전송됩니다.
 - 스마트 밴드/워치 알림은 보통 휴대폰 알림 동기화, Webhook relay, Telegram, Email을 통해 간접적으로 구현합니다.
-- Hooks / 플러그인 모드는 Claude Code / Gemini CLI / OpenCode에 더 적합하며, Watch는 주로 Codex 또는 fallback 용도로 사용합니다.
+- Hooks / 플러그인 모드는 Claude Code / 지원되는 Codex 클라이언트 / Gemini CLI / OpenCode / ZCode에 적합하며, Watch 폴백을 함께 쓰는 혼합 모드를 권장합니다. Codex는 `/hooks`에서 review / trust를 완료하고 hooks를 켜야 합니다.
 
 ## 변경 이력
 
@@ -281,6 +348,48 @@ macOS 참고:
 <summary>버전 이력 보기</summary>
 
 > `v2.x`는 현재 Tauri 기반 데스크톱 라인이고, `v1.x`는 이전 Electron 라인입니다. 전체 이전 버전 이력은 [English](README.md) 또는 [简体中文](README_zh.md)를 참고하세요.
+
+
+### 2.18.0
+
+- WSL CLI 및 Hook에서 Windows 데스크톱 알림을 보낼 수 있습니다. 기존 Windows PowerShell toast/balloon 경로를 재사용하므로 외부 네트워크, MCP 또는 별도 상주 서비스가 필요하지 않으며 순수 Linux 동작은 그대로 유지됩니다.
+- [Issue #41](https://github.com/ZekerTop/ai-cli-complete-notify/issues/41)에 대응하여 Codex 네이티브 hooks를 추가했습니다. **Hooks / Plugin Integration**의 Codex 카드와 CLI에서 설치, 제거, 상태 확인 및 미리보기를 지원합니다. 다른 Hook을 유지하며 `CODEX_HOME/hooks.json`(기본 `~/.codex/hooks.json`)에 정의를 기록합니다.
+- `UserPromptSubmit`이 시작 시간을 기록하고 `Stop`이 설정된 소요 시간 임계값을 확인합니다. 타이머는 session / turn별로 분리되며, `0`이면 매 턴 완료 시 알림을 허용합니다. 양수 임계값에는 유효한 소요 시간 기록이 필요합니다.
+- Codex Hook과 Watch는 session / turn 기반 완료 알림 중복 제거를 공유합니다. transcript 메타데이터에 따라 명시적인 subagent 세션과 goal이 `active` 또는 `paused`일 때의 중간 완료 이벤트를 필터링합니다.
+- 구성됨은 실제 실행을 뜻하지 않습니다. 설치나 업데이트 후 Codex `/hooks`에서 정의를 review / trust하고 hooks가 켜져 있는지 확인하세요. 혼합 모드에서는 Watch 폴백을 유지하며, 네이티브 hooks를 지원하지 않거나 비활성화한 클라이언트는 Watch를 계속 사용할 수 있습니다. Watch 전용 모드는 Codex hooks도 차단합니다.
+- Codex Hook / Watch의 동시 처리 후보는 동일한 session / turn을 원자적으로 선점하여 중복 알림을 제거합니다. 첫 전송이 모든 채널에서 실패하면 후속 후보가 이어받을 수 있어, 실패 기록이 Watch의 재전송을 막지 않습니다.
+- transcript에 명시적인 `task_complete` 시간이 있으면 비동기 `Stop`은 실제 완료 시간으로 소요 시간 임계값을 판단하여 처리 지연을 작업 시간에 포함하지 않습니다.
+- macOS DMG 패키징의 `LC_ALL` 환경 호환성을 수정하고 앱을 Applications로 드래그하는 표준 설치 레이아웃을 유지했습니다.
+
+### 2.17.0
+
+- 명시적으로 선택한 `.env`를 오래된 상속 환경 변수가 덮어쓰는 문제를 수정했습니다. 알림 테스트의 Telegram 확인과 `node ai-reminder.js telegram-check`로 메시지 전송 없이 토큰, 채팅 및 설정 출처를 확인할 수 있습니다. [문제 해결 안내](docs/telegram-troubleshooting.md) (Issue #37).
+- 앱과 트레이 로고를 업데이트했습니다. “i” 위의 점을 음파가 있는 기울어진 종으로 바꾸고, 왼쪽 상단 앱 이름 왼쪽에 로고를 추가하여 제목·버전 배지·부제목의 배치를 조정했습니다.
+- 앱 시작 시와 실행 중 매시간 GitHub의 최신 공개 안정 버전을 백그라운드에서 확인합니다. 새 버전이 있으면 버전 배지에 빨간 점이 표시되며, 클릭하면 프로젝트 정보에서 버전 정보와 다운로드 링크를 확인할 수 있습니다. 수동 재확인도 지원하며, 자동 다운로드나 설치는 하지 않습니다.
+- 업데이트 확인에 10초 제한 시간을 적용하고 중복 요청을 방지했습니다. 백그라운드 확인이 실패해도 이전에 발견한 업데이트 표시는 유지합니다.
+- 메뉴를 전환할 때 이전 메뉴의 스크롤 위치가 유지되던 문제를 수정했습니다. 이제 메뉴 전환 시 맨 위로 돌아갑니다.
+- 기본 비활성화 상태인 ZCode 소스를 추가했습니다. `node ai-reminder.js hooks install --target zcode`로 설치하며, `UserPromptSubmit`이 시작 시간을 기록하고 `Stop`이 소요 시간을 확인합니다. 프로젝트와 세션별로 시간을 관리하고, 반복 Stop은 최초 완료 시간을 유지하며 중복 알림을 제거합니다. 업데이트 후 새 ZCode 세션을 시작하세요.
+- ZCode Hook이 소요 시간 임계값을 강제로 우회하지 않도록 수정했습니다. 잘못된 이벤트나 완료가 아닌 이벤트는 완료 알림을 보내지 않습니다. 개별 채널, `ZCODE_WEBHOOK_URLS`, AI 요약을 지원합니다. Watch 경로를 추가하지 않으며 Watch 전용 모드에서도 ZCode Hook은 차단되지 않습니다.
+- 소스별 로고를 통일하고 Claude와 Codex 설명에 데스크톱을 추가했습니다. Codex는 파란색 로고를 사용하며 여백으로 작게 보이는 문제를 보정했습니다. 프로젝트 정보의 소스 목록은 자동 줄바꿈 아이콘으로 표시되고 마우스를 올리면 이름이 나타납니다. 소스 설정과 같은 목록을 사용합니다.
+- Feishu 카드에 ZCode 로고를 추가했습니다. 전역 채널이 꺼져 있어도 ZCode 채널 설정을 변경할 수 있습니다. 실제 전송에는 전역 채널 활성화가 필요하며 다른 소스의 동작은 그대로 유지됩니다.
+
+### 2.16.0
+
+- 화면 구성을 간소화했습니다. 버전 번호를 앱 제목 오른쪽의 둥근 배지로 표시하고 글자를 더 크고 굵게 했습니다. 배경색과 테두리로 강조하되 별도 줄을 차지하지 않으며, Desktop Console·Workspace Panel·Source Profile 장식 제목을 제거해 설정 영역의 세로 공간을 확보했습니다.
+- 전체 밝은·어두운·시스템 테마를 추가했습니다. 언어 선택 아래의 해·달·모니터 아이콘으로 전환하고 선택을 저장합니다. 시스템 모드는 OS 외관 변경을 반영합니다.
+- 선택적으로 사용하는 Herdr 페이지를 추가했습니다. 알림은 기본적으로 꺼져 있으며 독립 채널 설정과 중복 알림 확인을 제공하고 기존 AI 연동에는 영향을 주지 않습니다.
+- 페이지 진입 시 자동 확인, 확인·설치 버튼의 단계 번호, 녹색 성공 표시와 노란색 설정 안내를 추가했습니다. 알림을 끄면 채널 조작이 회색으로 비활성화되며 선택은 유지됩니다. 클릭하여 펼치는 설명, 커뮤니티 태그, 플러그인 및 기여자 GitHub 링크도 추가했습니다.
+- macOS GUI의 Herdr 경로 탐색, 재연결 시 불필요한 다운로드, 이미 활성화된 플러그인의 중복 활성화, 언어 전환이 반영되지 않는 메시지를 수정했습니다. 사용자 설정, 경로 인용 및 내장 런타임을 유지합니다.
+
+### 2.15.0
+
+- Intel Mac용 독립 패키지 `ai-cli-complete-notify_2.15.0_x86_64.dmg`를 추가했습니다. 기존 Apple Silicon용 `_aarch64.dmg`는 변경하지 않았습니다. Intel 네이티브 빌드 워크플로와 런타임 아키텍처 검사를 추가하여 서로 다른 아키텍처가 섞인 패키지 생성을 방지합니다.
+- Codex Desktop에서 Fork한 새 대화가 이전 완료 알림을 다시 재생하는 문제를 수정했습니다. Fork로 복사된 기록은 초기화가 끝나고 사용자가 새 메시지를 보낼 때까지 알림을 보내지 않으며, 새 브랜치의 turn만 알림을 보냅니다.
+- Codex Watch가 Guardian 내부 승인 검토 세션을 사용자 작업 완료로 잘못 판단하는 문제를 수정했습니다. `other: "guardian"`을 포함한 객체 형식의 `source.subagent` 메타데이터에 기존 하위 세션 필터를 적용하며, 상위 세션의 정상 완료 알림은 유지합니다. [PR #34](https://github.com/ZekerTop/ai-cli-complete-notify/pull/34)를 기여해 주신 [Bbbbqsh](https://github.com/Bbbbqsh) 님께 감사드립니다.
+- macOS에 **Dock 아이콘 숨기기** 옵션을 추가했습니다. 기본값은 OFF이며, 시작할 때 저장된 설정을 적용합니다. Dock 아이콘을 숨겨도 메뉴 막대 아이콘으로 앱을 사용할 수 있습니다. [PR #31](https://github.com/ZekerTop/ai-cli-complete-notify/pull/31)를 기여해 주신 [8liang](https://github.com/8liang) 님께 감사드립니다.
+- Telegram `401 / Unauthorized` 오류 진단을 개선하여 유효하지 않거나 폐기된 Bot Token을 `@BotFather`에서 재발급하고, 노출된 Token은 폐기하도록 안내합니다. 오류 안내를 개선한 것으로, 유효하지 않은 인증 정보를 자동으로 복구하지는 않습니다([Issue #33](https://github.com/ZekerTop/ai-cli-complete-notify/issues/33)).
+- Vite 클라이언트 타입 선언을 추가하여 TypeScript가 JPG 리소스 가져오기를 인식하지 못하는 문제를 해결했습니다. 화면은 변경하지 않았습니다.
+- Fork 타임스탬프 재작성, Watch 연결 후 분할 복사, 명확한 경계가 없을 때의 상속 turn 식별, attach/seed 경쟁, 서로 다른 작업 공간 `cwd`, Guardian 필터링과 상위 세션의 정상 완료 알림, Telegram 인증 오류 진단에 대한 회귀 테스트를 추가했습니다.
 
 ### 2.14.0
 
@@ -360,9 +469,17 @@ Issue와 Pull Request를 환영합니다.
 
 코드, 문서, 피드백, 아이디어로 프로젝트에 참여해 주신 모든 분께 감사드립니다.
 
-<a href="https://github.com/ZekerTop/ai-cli-complete-notify/graphs/contributors">
- <img alt="기여자" src="https://contrib.rocks/image?repo=ZekerTop/ai-cli-complete-notify&max=100&columns=12&anon=0" />
-</a>
+<p>
+  <a href="https://github.com/ZekerTop"><img src="docs/images/contributors/ZekerTop.svg" width="64" height="64" alt="ZekerTop" title="ZekerTop" /></a>
+  <a href="https://github.com/claude-notes"><img src="docs/images/contributors/claude-notes.svg" width="64" height="64" alt="claude-notes" title="claude-notes" /></a>
+  <a href="https://github.com/8liang"><img src="docs/images/contributors/8liang.svg" width="64" height="64" alt="8liang" title="8liang" /></a>
+  <a href="https://github.com/Atoony"><img src="docs/images/contributors/Atoony.svg" width="64" height="64" alt="Atoony" title="Atoony" /></a>
+  <a href="https://github.com/Windyskr"><img src="docs/images/contributors/Windyskr.svg" width="64" height="64" alt="Windyskr" title="Windyskr" /></a>
+  <a href="https://github.com/Bbbbqsh"><img src="docs/images/contributors/Bbbbqsh.svg" width="64" height="64" alt="Bbbbqsh" title="Bbbbqsh" /></a>
+  <a href="https://github.com/WALKERKILLER"><img src="docs/images/contributors/WALKERKILLER.svg" width="64" height="64" alt="WALKERKILLER" title="WALKERKILLER" /></a>
+  <a href="https://github.com/quecai-niu"><img src="docs/images/contributors/quecai-niu.svg" width="64" height="64" alt="quecai-niu" title="quecai-niu" /></a>
+  <a href="https://github.com/lishangwl"><img src="docs/images/contributors/lishangwl.svg" width="64" height="64" alt="lishangwl" title="lishangwl" /></a>
+</p>
 
 ## 🔗 링크
 

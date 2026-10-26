@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AppConfig, HookStatus } from '@/lib/types';
+import type { AppConfig, HookStatus, HookTarget } from '@/lib/types';
 import { sidecar } from '@/lib/sidecar';
 import Panel from './ui/Panel';
-
-type HookTarget = 'claude' | 'gemini' | 'opencode';
 
 interface HooksState {
   status: HookStatus | null;
@@ -24,7 +22,9 @@ interface Props {
 
 const TARGETS: { key: HookTarget; title: string; descKey: string }[] = [
   { key: 'claude', title: 'Claude Code', descKey: 'hooks.claude.desc' },
+  { key: 'codex', title: 'Codex', descKey: 'hooks.codex.desc' },
   { key: 'gemini', title: 'Gemini CLI', descKey: 'hooks.gemini.desc' },
+  { key: 'zcode', title: 'ZCode', descKey: 'hooks.zcode.desc' },
   { key: 'opencode', title: 'OpenCode', descKey: 'hooks.opencode.desc' },
 ];
 
@@ -42,13 +42,17 @@ export default function HooksPanel({ config, onUpdate, hooks, onHooksStatusChang
   const [previewTarget, setPreviewTarget] = useState<HookTarget>('claude');
   const [messages, setMessages] = useState<Record<HookTarget, string>>({
     claude: '',
+    codex: '',
     gemini: '',
     opencode: '',
+    zcode: '',
   });
   const [loading, setLoading] = useState<Record<HookTarget, boolean>>({
     claude: false,
+    codex: false,
     gemini: false,
     opencode: false,
+    zcode: false,
   });
 
   useEffect(() => {
@@ -68,6 +72,7 @@ export default function HooksPanel({ config, onUpdate, hooks, onHooksStatusChang
     if (!status) return;
     const uninstalled: string[] = [];
     if (!status.claude?.installed) uninstalled.push('Claude Code');
+    if (!status.codex?.installed) uninstalled.push('Codex');
     if (!status.gemini?.installed) uninstalled.push('Gemini CLI');
     if (!status.opencode?.installed) uninstalled.push('OpenCode');
     onHooksStatusChange(uninstalled);
@@ -166,6 +171,7 @@ export default function HooksPanel({ config, onUpdate, hooks, onHooksStatusChang
         {TARGETS.map((target) => {
           const info = hooks.status?.[target.key];
           const installed = info?.installed ?? false;
+          const inactive = target.key === 'zcode' && installed && hooks.status?.zcode?.hooksEnabled === false;
           const message = messages[target.key];
           const busy = loading[target.key];
           return (
@@ -174,29 +180,32 @@ export default function HooksPanel({ config, onUpdate, hooks, onHooksStatusChang
                 <div className="font-semibold tracking-[0.01em] text-sm">{target.title}</div>
                 <div
                   className={`px-2.5 py-0.5 rounded-full border text-[11px] whitespace-nowrap ${
-                    installed
+                    installed && !inactive
                       ? 'text-[rgba(139,219,166,0.92)] border-[rgba(139,219,166,0.30)] bg-[rgba(139,219,166,0.10)]'
                       : 'text-muted border-white/[0.14] bg-black/20'
                   }`}
                 >
-                  {installed ? t('hooks.status.installed') : t('hooks.status.notInstalled')}
+                  {inactive ? t('hooks.zcode.inactive') : installed ? t('hooks.status.installed') : t('hooks.status.notInstalled')}
                 </div>
               </div>
               <div className="text-xs text-muted mb-1">{t(target.descKey)}</div>
+              {target.key === 'codex' && (
+                <div className="text-xs text-muted mb-2 leading-relaxed">{t('hooks.codex.trustHint')}</div>
+              )}
               {info?.settingsPath && (
                 <div className="text-[11px] text-muted break-all mb-2">{info.settingsPath}</div>
               )}
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => handleInstall(target.key)}
-                  disabled={installed || busy}
+                  disabled={(installed && !inactive) || busy}
                   className={`px-3 py-1.5 rounded-xl border text-xs transition-colors disabled:cursor-not-allowed ${
-                    installed
+                    installed && !inactive
                       ? 'border-white/[0.12] bg-white/[0.05] text-muted'
                       : 'border-white/[0.14] bg-gradient-to-br from-accent to-accent2 text-white cursor-pointer'
                   }`}
                 >
-                  {busy && !installed ? '...' : installed ? t('hooks.status.installed') : t('hooks.install')}
+                  {busy && (!installed || inactive) ? '...' : inactive ? t('hooks.zcode.enable') : installed ? t('hooks.status.installed') : t('hooks.install')}
                 </button>
                 <button
                   onClick={() => handleUninstall(target.key)}

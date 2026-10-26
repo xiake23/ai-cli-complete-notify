@@ -14,8 +14,11 @@ const {
 const {
   getClaudeHookNotificationContext,
   getGeminiHookNotificationContext,
+  getHerdrHookNotificationContext,
   getOpenCodeHookNotificationContext,
+  getZcodeHookNotificationContext,
 } = require('./hook-context');
+const { getCodexHookNotificationContext } = require('./codex-hook');
 const { exec, spawn } = require('child_process');
 const path = require('path');
 
@@ -33,28 +36,29 @@ function printHelp() {
   ${invoke} start  --source claude  --task "..."
   ${invoke} stop   --source claude  --task "..." [--force]
   ${invoke} notify --source claude  --task "..." [--duration-minutes 12] [--force] [--from-hook]
+  ${invoke} telegram-check  (read-only Bot Token and Chat ID check; no message sent)
   ${invoke} summary-test
   ${invoke} run    --source claude  -- <command> [args...]
   ${invoke} watch  [--sources all] [--interval-ms 1000] [--gemini-quiet-ms 3000] [--claude-quiet-ms 60000] [--quiet]
   ${invoke} paths
   ${invoke} env-status [--create-example]
-  ${invoke} hooks  status
-  ${invoke} hooks  install   --target claude|gemini|opencode
-  ${invoke} hooks  uninstall --target claude|gemini|opencode
-  ${invoke} hooks  preview   --target claude|gemini|opencode
+  ${invoke} hooks  status    [--target herdr]
+  ${invoke} hooks  install   --target claude|codex|gemini|opencode|herdr|zcode
+  ${invoke} hooks  uninstall --target claude|codex|gemini|opencode|herdr|zcode
+  ${invoke} hooks  preview   --target claude|codex|gemini|opencode|herdr|zcode
   ${invoke} config
 
 说明:
-  - source 支持: claude / codex / opencode / gemini
+  - source 支持: claude / codex / opencode / gemini / herdr / zcode
   - 阈值提醒建议使用 start/stop（自动计算耗时）
   - 最省事的接入方式是 run：由 ${PRODUCT_NAME} 负责计时并在命令结束后提醒
   - 交互式 / VSCode 插件场景建议使用 watch：自动监听本机日志并在每次回复完成后提醒（Claude / Codex / Gemini）
-  - hooks：Claude Code / Gemini CLI 使用原生 hooks；OpenCode 通过全局 plugin 接收 session.status idle / session.idle / session.error 事件
+  - hooks：Claude Code / Codex / Gemini CLI 使用原生 hooks；Codex 安装后请在 /hooks 中审核并信任配置，保持 hooks 功能开启；OpenCode 通过全局 plugin 接收 session.status idle / session.idle / session.error 事件；Herdr 通过 herdr plugin install 安装 herdr-ai-notify 插件并写入 AI_REMINDER_PATH 配置；ZCode 通过用户级 config.json 注册 UserPromptSubmit / Stop process hooks（安装后完全退出 ZCode 并新建会话）
 
 配置:
   - settings: ${getConfigPath()}
   - dataDir: ${getDataDir()}
-  - env: WEBHOOK_URLS, <SOURCE>_WEBHOOK_URLS (CLAUDE/CODEX/GEMINI/OPENCODE), TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, EMAIL_HOST/EMAIL_USER/EMAIL_PASS/EMAIL_FROM/EMAIL_TO
+  - env: WEBHOOK_URLS, <SOURCE>_WEBHOOK_URLS (CLAUDE/CODEX/GEMINI/OPENCODE/ZCODE), TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, EMAIL_HOST/EMAIL_USER/EMAIL_PASS/EMAIL_FROM/EMAIL_TO
 `);
 }
 
@@ -73,7 +77,7 @@ function sleep(ms) {
 }
 
 function isValidHookTarget(target) {
-  return target === 'claude' || target === 'gemini' || target === 'opencode';
+  return target === 'claude' || target === 'codex' || target === 'gemini' || target === 'opencode' || target === 'herdr' || target === 'zcode';
 }
 
 async function runCli(argv) {
@@ -127,6 +131,13 @@ async function runCli(argv) {
     const status = getEnvSetupStatus({ createExample: Boolean(flags['create-example']) });
     console.log(JSON.stringify(status, null, 2));
     return { ok: status.ok, mode: 'env-status', result: status };
+  }
+
+  if (command === 'telegram-check') {
+    const { checkTelegram } = require('./notifiers/telegram');
+    const result = await checkTelegram(loadConfig());
+    console.log(JSON.stringify(result, null, 2));
+    return { ok: true, mode: 'telegram-check', exitCode: result.ok ? 0 : 1, result };
   }
 
   if (command === 'summary-test') {
@@ -209,24 +220,29 @@ async function runCli(argv) {
     const target = String(flags.target || flags.t || '');
 
     if (subCommand === 'status') {
-      const status = getHookStatus();
+      const status = getHookStatus(target);
       console.log(JSON.stringify(status, null, 2));
       return { ok: true, mode: 'hooks', subCommand: 'status', result: status };
     }
 
     if (subCommand === 'install') {
       if (!isValidHookTarget(target)) {
-        console.error('请指定 --target claude / gemini / opencode');
+        console.error('请指定 --target claude / codex / gemini / opencode / herdr / zcode');
         return { ok: false, mode: 'hooks', error: 'Missing or invalid --target' };
       }
       const result = installHook(target);
-      console.log(result.ok ? `已安装 ${target} 集成 -> ${result.settingsPath}` : `安装失败: ${result.error}`);
+      if (flags.json) {
+        console.log(JSON.stringify({ ok: result.ok, step: result.step, errorCode: result.errorCode }));
+      } else {
+        console.log(result.ok ? `已安装 ${target} 集成 -> ${result.settingsPath}` : `安装失败: ${result.error}`);
+        if (result.ok && target === 'codex') console.log('请在 Codex 的 /hooks 中审核并信任新增 hooks；如已关闭 hooks 功能，请自行开启。');
+      }
       return { ok: result.ok, mode: 'hooks', subCommand: 'install', result };
     }
 
     if (subCommand === 'uninstall') {
       if (!isValidHookTarget(target)) {
-        console.error('请指定 --target claude / gemini / opencode');
+        console.error('请指定 --target claude / codex / gemini / opencode / herdr / zcode');
         return { ok: false, mode: 'hooks', error: 'Missing or invalid --target' };
       }
       const result = uninstallHook(target);
@@ -336,14 +352,21 @@ async function runCli(argv) {
 
   if (command === 'notify') {
     const fromHook = Boolean(flags['from-hook']);
+    // Keep diagnostics off stdout; Gemini expects a JSON response below.
+    const isZcodeHook = fromHook && source === 'zcode';
     const isGeminiHook = fromHook && source === 'gemini';
+    const isCodexHook = fromHook && source === 'codex';
+    const silentStdoutHook = isZcodeHook || isGeminiHook || isCodexHook;
     const originalLog = console.log;
+    const desktopStdout = process.env.AI_CLI_COMPLETE_NOTIFY_DESKTOP_STDOUT;
     const durationMinutes = toNumberOrNull(flags['duration-minutes']);
     const durationMs = durationMinutes != null ? durationMinutes * 60 * 1000 : toNumberOrNull(flags['duration-ms']);
 
-    if (isGeminiHook) {
+    if (silentStdoutHook) {
       console.log = (...args) => console.error(...args);
     }
+    // Hook stdout belongs to Codex, not the Tauri notification bridge.
+    if (isCodexHook) process.env.AI_CLI_COMPLETE_NOTIFY_DESKTOP_STDOUT = '0';
 
     try {
       let hookContext = null;
@@ -352,19 +375,30 @@ async function runCli(argv) {
         hookContext = await readStdinJson();
       }
 
+      const zcodeTiming = isZcodeHook
+        ? require('./zcode-timing').trackZcodeTurn(hookContext) : null;
+      if (isZcodeHook && hookContext?.hook_event_name === 'UserPromptSubmit') {
+        return { ok: true, mode: 'notify', result: { skipped: true, reason: 'ZCode turn started', results: [] } };
+      }
       const effectiveCwd = (hookContext && hookContext.cwd) || cwd;
       const effectiveTask = (hookContext && hookContext.task_info) || taskInfo;
       const claudeOnlyInteractive = source === 'claude'
         ? loadConfig()?.sources?.claude?.onlyInteractive !== false
         : false;
       const hookNotificationContext =
-        fromHook && source === 'claude'
+        isCodexHook
+          ? getCodexHookNotificationContext(hookContext, effectiveTask)
+          : fromHook && source === 'claude'
           ? getClaudeHookNotificationContext(hookContext, effectiveTask, { onlyInteractive: claudeOnlyInteractive })
           : fromHook && source === 'gemini'
             ? getGeminiHookNotificationContext(hookContext, effectiveTask)
             : fromHook && source === 'opencode'
               ? getOpenCodeHookNotificationContext(hookContext, effectiveTask)
-              : null;
+              : fromHook && source === 'herdr'
+                ? getHerdrHookNotificationContext(hookContext, effectiveTask)
+                : fromHook && source === 'zcode'
+                  ? getZcodeHookNotificationContext(hookContext, effectiveTask)
+                  : null;
 
       if (hookNotificationContext && hookNotificationContext.skip) {
         const skipped = {
@@ -383,23 +417,29 @@ async function runCli(argv) {
       const result = await sendNotifications({
         source,
         taskInfo: hookNotificationContext?.taskInfo || effectiveTask,
-        durationMs,
+        durationMs: isCodexHook ? hookNotificationContext?.durationMs : isZcodeHook ? zcodeTiming?.durationMs : durationMs,
         cwd: effectiveCwd,
-        force: Boolean(flags.force),
+        force: !isZcodeHook && !isCodexHook && Boolean(flags.force),
         fromHook,
         outputContent: hookNotificationContext?.outputContent,
         summaryContext: hookNotificationContext?.summaryContext,
         skipSummary: Boolean(hookNotificationContext?.skipSummary),
         notifyKind: hookNotificationContext?.notifyKind,
-        dedupeKey: hookNotificationContext?.dedupeKey,
+        dedupeKey: zcodeTiming ? `${zcodeTiming.startedAt}:${hookNotificationContext?.dedupeKey}` : hookNotificationContext?.dedupeKey,
         skipDedupe: Boolean(flags['skip-dedupe']),
       });
       printResult(result);
       return { ok: true, mode: 'notify', result };
     } finally {
-      if (isGeminiHook) {
+      if (isCodexHook) {
+        if (desktopStdout == null) delete process.env.AI_CLI_COMPLETE_NOTIFY_DESKTOP_STDOUT;
+        else process.env.AI_CLI_COMPLETE_NOTIFY_DESKTOP_STDOUT = desktopStdout;
+      }
+      if (silentStdoutHook) {
         console.log = originalLog;
-        originalLog('{}');
+        if (isGeminiHook || isCodexHook) {
+          originalLog('{}');
+        }
       }
     }
   }
